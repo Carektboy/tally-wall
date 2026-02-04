@@ -2,36 +2,37 @@ html, body {
   margin: 0;
   padding: 0;
   background: #f4efe8;
-  overflow: auto; /* Allows vertical scrolling for the thousands of days */
+  overflow: auto; 
   display: flex;
-  justify-content: center; /* Centers the wall horizontally */
+  justify-content: center;
   font-family: sans-serif;
 }
 
 #wall {
   display: block;
   background: #f4efe8;
-  /* Decorative borders to act as a frame */
+  /* Side borders act as a frame and prevent cutoff */
   border-left: 30px solid #e8e2d8; 
   border-right: 30px solid #e8e2d8;
   box-shadow: 0 0 50px rgba(0,0,0,0.05);
-  margin: 40px auto; 
+  margin: 0 auto; 
 }
 
 .tally {
   fill: none;
-  stroke: rgba(0,0,0,0.6);
   stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
   cursor: pointer;
   transition: all 0.2s ease;
+  opacity: 0.8;
 }
 
-/* Hover effect for the generation groups */
+/* Hover effect highlights the tally in red */
 g:hover .tally {
-  stroke: #d32f2f; /* Highlight color for interaction */
+  stroke: #d32f2f !important;
   stroke-width: 3.5;
+  opacity: 1;
 }
 
 #tooltip {
@@ -44,5 +45,4 @@ g:hover .tally {
   pointer-events: none;
   opacity: 0;
   z-index: 100;
-  transition: opacity 0.15s;
 }
