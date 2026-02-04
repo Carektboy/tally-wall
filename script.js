@@ -62,7 +62,7 @@ function init() {
             date: date.toDateString(), 
             people: alive.map(p => p.name) 
         });
-        curX += 45;
+        curX += 35;
     }
     draw(); // Fail-safe immediate draw
 }
@@ -82,7 +82,7 @@ function draw() {
         if (t.y < vTop - 150 || t.y > vBottom + 150) return;
         t.people.forEach((name, j) => {
             const img = cache.get(name);
-            if (img) ctx.drawImage(img, t.x + (j * 5), t.y);
+            if (img) ctx.drawImage(img, t.x + (j * 3), t.y);
         });
     });
     ctx.restore();
