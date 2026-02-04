@@ -4,20 +4,20 @@ const tooltip = document.getElementById("tooltip");
 
 const data = {
     "people": [
-        { "name": "Grandmother", "dob": "1938-02-01", "colors": ["#2d5a27"] },
-        { "name": "Father", "dob": "1969-05-25", "colors": ["#1e3a8a"] },
-        { "name": "Mother", "dob": "1980-01-29", "colors": ["#9a3412"] },
-        { "name": "Aunt", "dob": "1985-02-07", "colors": ["#5b21b6"] },
-        { "name": "Samip", "dob": "2004-08-07", "colors": ["#0369a1"] },
-        { "name": "Kabir", "dob": "2005-04-05", "colors": ["#854d0e"] },
-        { "name": "Sangram", "dob": "2008-05-07", "colors": ["#9d174d"] }
+        { "name": "Grandmother", "dob": "1938-02-01", "colors": ["#e66b5b"] }, // Reddish
+        { "name": "Father", "dob": "1969-05-25", "colors": ["#6b9ae6"] },      // Bluish
+        { "name": "Mother", "dob": "1980-01-29", "colors": ["#f0c05a"] },      // Yellowish
+        { "name": "Aunt", "dob": "1985-02-07", "colors": ["#a178d1"] },        // Purple
+        { "name": "Samip", "dob": "2004-08-07", "colors": ["#5baec4"] },       // Teal
+        { "name": "Kabir", "dob": "2005-04-05", "colors": ["#c28d5a"] },       // Brown
+        { "name": "Sangram", "dob": "2008-05-07", "colors": ["#c45b8e"] }      // Pink
     ]
 };
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-let scale = 0.8; 
+let scale = 1.0; 
 let offsetX = 0;
 let offsetY = 0;
 let isDragging = false;
@@ -28,35 +28,35 @@ init(data.people);
 
 function init(people) {
     people.sort((a, b) => new Date(a.dob) - new Date(b.dob));
-    const startDate = new Date(people[0].dob);
+    const startDate = new Date(people[0].getFullYear(), 0, 1); // Start at Jan 1st of birth year
     const today = new Date();
-    const msDay = 86400000;
-    const totalDays = Math.floor((today - startDate) / msDay);
+    
+    // For this specific look, we show ONE tally per year as per the reference image
+    const startYear = startDate.getFullYear();
+    const endYear = today.getFullYear();
 
-    const perRow = 30; 
-    const xGap = 50; 
-    const yGap = 80;
+    const perRow = 10; // 10 years per row like the image
+    const xGap = 120; 
+    const yGap = 150;
 
     tallies = [];
 
-    for (let i = 0; i <= totalDays; i++) {
-        const date = new Date(startDate.getTime() + i * msDay);
-        const row = Math.floor(i / perRow);
-        const col = i % perRow;
-        const activePeople = people.filter(p => new Date(p.dob) <= date);
+    for (let year = startYear; year <= endYear; year++) {
+        const index = year - startYear;
+        const row = Math.floor(index / perRow);
+        const col = index % perRow;
+        
+        // Filter people alive during this year
+        const activePeople = people.filter(p => new Date(p.dob).getFullYear() <= year);
 
         tallies.push({
-            x: col * xGap,
-            y: row * yGap,
-            date,
+            x: col * xGap + 100,
+            y: row * yGap + 100,
+            year: year,
             people: activePeople
         });
     }
-
-    const lastTally = tallies[tallies.length - 1];
-    offsetX = (canvas.width / 2) - (lastTally.x * scale);
-    offsetY = (canvas.height / 2) - (lastTally.y * scale);
-
+    
     draw();
 }
 
@@ -66,50 +66,44 @@ function draw() {
     
     ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
     
-    ctx.globalAlpha = 1.0; // Solid colors only
-    ctx.lineWidth = 7;     // Fatter, solid lines
     ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+    ctx.lineWidth = 4; // Thinner, cleaner lines
 
     tallies.forEach(t => {
+        // Culling for performance
         const screenX = t.x * scale + offsetX;
         const screenY = t.y * scale + offsetY;
         if (screenX < -200 || screenX > canvas.width + 200 || screenY < -200 || screenY > canvas.height + 200) return;
 
-        t.people.forEach((p, i) => {
-            ctx.strokeStyle = p.colors[0]; 
-            
-            // REDUCE GAP HERE: Change '4' to a smaller number for more overlap
-            const xPos = t.x + (i * 5); 
-            
-            const yStart = t.y;
-            const yEnd = t.y + 40;
-            
-            // Natural curve logic (less "jelly bean", more "hand-drawn")
-            const controlX = xPos + 3;
+        // Draw Year Label
+        ctx.fillStyle = "#999";
+        ctx.font = "14px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(t.year, t.x + (t.people.length * 4), t.y - 20);
 
+        // Draw Clean Tallies
+        t.people.forEach((p, i) => {
+            ctx.strokeStyle = p.colors[0];
+            const xPos = t.x + (i * 10); // Slightly more space between stripes
+            
             ctx.beginPath();
-            ctx.moveTo(xPos, yStart);
-            ctx.quadraticCurveTo(controlX, yStart + 20, xPos, yEnd);
+            ctx.moveTo(xPos, t.y);
+            // Uniform slight curve
+            ctx.quadraticCurveTo(xPos + 2, t.y + 20, xPos, t.y + 50);
             ctx.stroke();
         });
     });
 }
 
-// Controls & Interactivity
+// Interactivity (Same as before)
 canvas.addEventListener("wheel", e => {
     e.preventDefault();
-    if (e.ctrlKey || e.metaKey) {
-        const zoom = e.deltaY < 0 ? 1.1 : 0.9;
-        const mouseX = (e.clientX - offsetX) / scale;
-        const mouseY = (e.clientY - offsetY) / scale;
-        scale = Math.min(Math.max(scale * zoom, 0.05), 4);
-        offsetX = e.clientX - mouseX * scale;
-        offsetY = e.clientY - mouseY * scale;
-    } else {
-        offsetX -= e.deltaX;
-        offsetY -= e.deltaY;
-    }
+    const zoom = e.deltaY < 0 ? 1.1 : 0.9;
+    const mouseX = (e.clientX - offsetX) / scale;
+    const mouseY = (e.clientY - offsetY) / scale;
+    scale = Math.min(Math.max(scale * zoom, 0.1), 3);
+    offsetX = e.clientX - mouseX * scale;
+    offsetY = e.clientY - mouseY * scale;
     draw();
 }, { passive: false });
 
@@ -138,12 +132,11 @@ window.addEventListener("mouseup", () => {
 function handleHover(e) {
     const x = (e.clientX - offsetX) / scale;
     const y = (e.clientY - offsetY) / scale;
-
     for (const t of tallies) {
-        if (x > t.x - 10 && x < t.x + 60 && y > t.y && y < t.y + 50) {
+        if (x > t.x - 20 && x < t.x + 80 && y > t.y - 20 && y < t.y + 60) {
             tooltip.style.left = e.clientX + 15 + "px";
             tooltip.style.top = e.clientY + 15 + "px";
-            tooltip.innerHTML = `<strong>${t.date.toDateString()}</strong><br>${t.people.map(p => p.name).join(", ")}`;
+            tooltip.innerHTML = `Year: ${t.year}<br>${t.people.map(p => p.name).join(", ")}`;
             tooltip.style.opacity = 1;
             return;
         }
