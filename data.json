@@ -1,8 +1,10 @@
 {
   "tallies": [
-    { "x": 100, "y": 150, "label": "Event A", "value": 5 },
-    { "x": 300, "y": 250, "label": "Event B", "value": 10 },
-    { "x": 600, "y": 400, "label": "Event C", "value": 3 },
-    { "x": 1000, "y": 500, "label": "Event D", "value": 8 }
+    { "x": 100, "y": 120, "label": "Grandmom: First milestone", "value": 1 },
+    { "x": 200, "y": 140, "label": "Father: Second mark", "value": 2 },
+    { "x": 300, "y": 160, "label": "Samip: Third mark", "value": 3 },
+    { "x": 400, "y": 180, "label": "Event D", "value": 5 },
+    { "x": 550, "y": 230, "label": "Event E", "value": 4 },
+    { "x": 800, "y": 350, "label": "Event F", "value": 7 }
   ]
 }
