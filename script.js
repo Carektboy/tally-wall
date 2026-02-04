@@ -1,4 +1,4 @@
-const canvas = document.getElementById("tallyCanvas");
+    const canvas = document.getElementById("tallyCanvas");
 const ctx = canvas.getContext("2d");
 const tooltip = document.getElementById("tooltip");
 
@@ -82,7 +82,7 @@ function draw() {
         if (t.y < vTop - 150 || t.y > vBottom + 150) return;
         t.people.forEach((name, j) => {
             const img = cache.get(name);
-            if (img) ctx.drawImage(img, t.x + (j * 3), t.y);
+            if (img) ctx.drawImage(img, t.x + (j * 8), t.y);
         });
     });
     ctx.restore();
