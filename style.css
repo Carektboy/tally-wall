@@ -2,45 +2,32 @@ html, body {
   margin: 0;
   padding: 0;
   background: #f4efe8;
-  overflow: auto;
-  display: flex;
-  justify-content: center;
+  overflow-x: hidden; /* Prevents awkward side-scrolling on mobile */
   font-family: sans-serif;
 }
 
 #wall {
   display: block;
   background: #f4efe8;
-  border-left: 30px solid #e8e2d8; 
-  border-right: 30px solid #e8e2d8;
-  box-shadow: 0 0 50px rgba(0,0,0,0.05);
-  margin: 0 auto; 
+  margin: 0 auto;
+  /* Removed borders to maximize mobile space */
 }
 
 .tally {
   fill: none;
-  /* Thick dark gray/black strokes */
   stroke: rgba(0,0,0,0.85); 
-  stroke-width: 3.5;
+  stroke-width: 4.5; /* Even thicker for mobile visibility */
   stroke-linecap: round;
   stroke-linejoin: round;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-/* Hover effect turns the tally group red */
-g:hover .tally {
-  stroke: #d32f2f;
-  stroke-width: 5;
 }
 
 #tooltip {
   position: fixed;
   background: rgba(0,0,0,0.85);
   color: #fff;
-  padding: 8px 12px;
-  font-size: 13px;
-  border-radius: 4px;
+  padding: 10px;
+  font-size: 14px;
+  border-radius: 5px;
   pointer-events: none;
   opacity: 0;
   z-index: 100;
