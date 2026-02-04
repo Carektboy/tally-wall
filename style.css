@@ -1,9 +1,16 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: #f4efe8;
-  overflow: hidden;
-  font-family: sans-serif;
+  height: 100%;
+  overflow: auto;
+  background: #0e0e0e;
+  color: white;
+  font-family: system-ui, sans-serif;
+}
+
+#wrapper {
+  position: relative;
+  min-height: 200vh; /* allows scrolling */
 }
 
 canvas {
@@ -12,12 +19,12 @@ canvas {
 
 #tooltip {
   position: fixed;
-  background: rgba(0,0,0,0.85);
-  color: white;
-  padding: 6px 10px;
-  font-size: 12px;
-  border-radius: 4px;
   pointer-events: none;
+  background: rgba(0,0,0,0.85);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
   opacity: 0;
-  z-index: 10;
+  transition: opacity 0.15s;
+  white-space: nowrap;
 }
