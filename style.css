@@ -4,25 +4,26 @@ html, body {
     width: 100vw;
     height: 100vh;
     overflow: hidden;
-    background: #f8f1e9; /* Authentic paper cream color */
-    font-family: system-ui, sans-serif;
+    background: #fdfaf6;
+    font-family: system-ui, -apple-system, sans-serif;
 }
 
-#wrapper {
-    width: 100%;
-    height: 100%;
+canvas {
+    display: block;
+    touch-action: none; /* Prevents mobile interference */
+    contain: strict;
 }
 
 #tooltip {
     position: fixed;
     pointer-events: none;
-    background: #fff;
+    background: white;
     padding: 8px 12px;
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     font-size: 13px;
+    font-weight: 500;
     opacity: 0;
-    transition: opacity 0.1s;
-    border: 1px solid #ddd;
     z-index: 1000;
+    border: 1px solid #eee;
 }
