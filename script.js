@@ -34,8 +34,8 @@ function init(people) {
   const totalDays = Math.floor((today - startDate) / msDay);
 
   const perRow = 30; 
-  const xGap = 100; 
-  const yGap = 120;
+  const xGap = 20; 
+  const yGap = 40;
 
   tallies = [];
 
