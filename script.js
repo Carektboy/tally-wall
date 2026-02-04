@@ -1,118 +1,90 @@
-const svg = document.getElementById("wall");
+const canvas = document.getElementById("wall");
+const ctx = canvas.getContext("2d");
 const tooltip = document.getElementById("tooltip");
 
-// --- DATE SETUP ---
-const gMomBirth = new Date("1966-05-12");
-const dadBirth = new Date(gMomBirth);
-dadBirth.setFullYear(dadBirth.getFullYear() + 18);
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-const myBirth = new Date(dadBirth);
-myBirth.setFullYear(myBirth.getFullYear() + 20);
-
-const today = new Date();
-const msInDay = 24 * 60 * 60 * 1000;
-const totalDays = Math.floor((today - gMomBirth) / msInDay);
-
-// --- GRID SETTINGS ---
-const itemsPerRow = 60;
-const baseXSpacing = 32;
-const baseYSpacing = 70;
-const startX = 60;
-const startY = 40;
-
-// --- ZOOM STATE ---
-let zoom = 1;
-let targetZoom = 1;
+// --- CAMERA ---
+let scale = 1;
+let offsetX = 0;
+let offsetY = 0;
 
 // --- DATA ---
+const gMomBirth = new Date("1966-05-12");
+const dadBirth = new Date(gMomBirth); dadBirth.setFullYear(dadBirth.getFullYear() + 18);
+const myBirth = new Date(dadBirth); myBirth.setFullYear(myBirth.getFullYear() + 20);
+
+const today = new Date();
+const msInDay = 86400000;
+const totalDays = Math.floor((today - gMomBirth) / msInDay);
+
+// --- GRID ---
+const perRow = 60;
+const spacingX = 28;
+const spacingY = 60;
+const startX = 80;
+const startY = 80;
+
 const tallies = [];
 
-// --- CREATE ONCE ---
 for (let i = 0; i < totalDays; i++) {
-  const row = Math.floor(i / itemsPerRow);
-  const col = i % itemsPerRow;
+  const row = Math.floor(i / perRow);
+  const col = i % perRow;
 
-  const baseX = startX + col * baseXSpacing;
-  const baseY = startY + row * baseYSpacing;
+  const date = new Date(gMomBirth.getTime() + i * msInDay);
 
-  const currentDay = new Date(gMomBirth.getTime() + i * msInDay);
-
-  let era = "Grandmother";
   let strokes = 1;
-  if (currentDay >= dadBirth && currentDay < myBirth) {
-    era = "Father"; strokes = 2;
-  } else if (currentDay >= myBirth) {
-    era = "Me"; strokes = 3;
-  }
+  let label = "Grandmother";
+  if (date >= dadBirth && date < myBirth) { strokes = 2; label = "Father"; }
+  else if (date >= myBirth) { strokes = 3; label = "Me"; }
 
-  const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
-  for (let s = 0; s < strokes; s++) {
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    const d = `
-      M ${baseX + s * 8} ${baseY}
-      c 4 -8 8 0 0 16
-      c -8 16 -4 24 0 16
-    `;
-    path.setAttribute("d", d);
-    path.classList.add("tally");
-    group.appendChild(path);
-  }
-
-  group.dataset.baseX = baseX;
-  group.dataset.baseY = baseY;
-  group.dataset.row = row;
-  group.dataset.col = col;
-
-  group.addEventListener("mouseenter", () => {
-    tooltip.textContent = `${era}: ${currentDay.toDateString()}`;
-    tooltip.style.opacity = 1;
+  tallies.push({
+    x: startX + col * spacingX,
+    y: startY + row * spacingY,
+    strokes,
+    label,
+    date: date.toDateString()
   });
-  group.addEventListener("mousemove", e => {
-    tooltip.style.left = e.clientX + 15 + "px";
-    tooltip.style.top = e.clientY + 15 + "px";
-  });
-  group.addEventListener("mouseleave", () => tooltip.style.opacity = 0);
-
-  svg.appendChild(group);
-  tallies.push(group);
 }
 
-// --- APPLY SPACING ONLY ---
-function applyZoom() {
-  zoom += (targetZoom - zoom) * 0.15;
+// --- DRAW ---
+function draw() {
+  ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
+  ctx.clearRect(-offsetX / scale, -offsetY / scale, canvas.width / scale, canvas.height / scale);
 
-  tallies.forEach(g => {
-    const col = +g.dataset.col;
-    const row = +g.dataset.row;
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(0,0,0,0.85)";
 
-    const dx = col * baseXSpacing * (zoom - 1);
-    const dy = row * baseYSpacing * (zoom - 1);
-
-    g.setAttribute(
-      "transform",
-      `translate(${dx}, ${dy})`
-    );
+  tallies.forEach(t => {
+    for (let s = 0; s < t.strokes; s++) {
+      ctx.beginPath();
+      ctx.moveTo(t.x + s * 8, t.y);
+      ctx.bezierCurveTo(
+        t.x + s * 8 + 4, t.y - 10,
+        t.x + s * 8 + 8, t.y + 10,
+        t.x + s * 8, t.y + 30
+      );
+      ctx.stroke();
+    }
   });
-
-  requestAnimationFrame(applyZoom);
 }
 
-// --- WHEEL ZOOM ---
-svg.addEventListener("wheel", e => {
+// --- ZOOM ---
+canvas.addEventListener("wheel", e => {
   e.preventDefault();
-  targetZoom += e.deltaY < 0 ? 0.15 : -0.15;
-  targetZoom = Math.min(Math.max(targetZoom, 1), 3);
+  const zoom = e.deltaY < 0 ? 1.1 : 0.9;
+  scale *= zoom;
+  scale = Math.min(Math.max(scale, 0.6), 4);
+  draw();
 }, { passive: false });
 
-// --- SVG SIZE ---
-const rows = Math.ceil(totalDays / itemsPerRow);
-const width = startX + itemsPerRow * baseXSpacing + 80;
-const height = startY + rows * baseYSpacing;
+// --- RESIZE ---
+window.addEventListener("resize", () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  draw();
+});
 
-svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-svg.style.width = width + "px";
-svg.style.height = height + "px";
-
-// --- START ---
-applyZoom();
+draw();
