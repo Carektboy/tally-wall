@@ -1,5 +1,5 @@
 const canvas = document.getElementById("tallyCanvas");
-const ctx = canvas.getContext("2d", { alpha: false }); // Optimization: no alpha channel for main background
+const ctx = canvas.getContext("2d", { alpha: false });
 const tooltip = document.getElementById("tooltip");
 
 const data = {
@@ -18,23 +18,20 @@ let scale = 0.8, offsetX = 50, offsetY = 50;
 let tallies = [];
 const cache = new Map();
 
-// Optimization: Pre-render 1 tally mark per person to an offscreen canvas
+// High Performance: Pre-draw each person's stroke once
 function preRenderMarks() {
     data.people.forEach(p => {
-        const offCanvas = document.createElement('canvas');
-        offCanvas.width = 20; 
-        offCanvas.height = 60;
-        const oCtx = offCanvas.getContext('2d');
-        
+        const off = document.createElement('canvas');
+        off.width = 20; off.height = 60;
+        const oCtx = off.getContext('2d');
         oCtx.strokeStyle = p.color;
         oCtx.lineWidth = 4;
         oCtx.lineCap = "round";
         oCtx.beginPath();
         oCtx.moveTo(5, 5);
-        oCtx.bezierCurveTo(10, 20, 0, 40, 5, 55); // Organic S-curve
+        oCtx.bezierCurveTo(12, 20, -2, 40, 5, 55); // Organic S-Curve
         oCtx.stroke();
-        
-        cache.set(p.name, offCanvas);
+        cache.set(p.name, off);
     });
 }
 
@@ -48,7 +45,7 @@ function init() {
     const today = new Date();
     const totalDays = Math.floor((today - startDate) / 86400000);
 
-    const wrapWidth = window.innerWidth - 100;
+    const wrapWidth = window.innerWidth - 150;
     let curX = 0, curY = 0;
 
     tallies = [];
@@ -56,10 +53,15 @@ function init() {
         const date = new Date(startDate.getTime() + i * 86400000);
         const alive = people.filter(p => new Date(p.dob) <= date);
 
-        if (curX > wrapWidth) { curX = 0; curY += 80; }
+        if (curX > wrapWidth) { curX = 0; curY += 100; }
 
-        tallies.push({ x: curX, y: curY, date: date.toDateString(), people: alive.map(p => p.name) });
-        curX += 45;
+        tallies.push({ 
+            x: curX, 
+            y: curY, 
+            date: date.toDateString(), 
+            people: alive.map(p => p.name) 
+        });
+        curX += 45; // Spacing between days
     }
     requestAnimationFrame(draw);
 }
@@ -72,29 +74,34 @@ function draw() {
     ctx.translate(offsetX, offsetY);
     ctx.scale(scale, scale);
 
-    // Viewport Culling: Only draw what is visible on screen
+    // Viewport Culling: Only draw visible rows
     const vTop = -offsetY / scale;
     const vBottom = (canvas.height - offsetY) / scale;
 
-    for (let i = 0; i < tallies.length; i++) {
-        const t = tallies[i];
-        if (t.y < vTop - 100 || t.y > vBottom + 100) continue;
+    tallies.forEach(t => {
+        if (t.y < vTop - 100 || t.y > vBottom + 100) return;
 
-        for (let j = 0; j < t.people.length; j++) {
-            const markImage = cache.get(t.people[j]);
-            // DrawImage is significantly faster than path-drawing 30k times
-            ctx.drawImage(markImage, t.x + (j * 5), t.y);
-        }
-    }
+        t.people.forEach((name, j) => {
+            const img = cache.get(name);
+            ctx.drawImage(img, t.x + (j * 4), t.y); // Overlap logic (4px)
+        });
+    });
     ctx.restore();
 }
 
-// Optimized Interaction
+// FIXED: Zoom-to-Cursor Logic
 window.addEventListener("wheel", e => {
     e.preventDefault();
-    if (e.ctrlKey) {
-        const zoom = e.deltaY < 0 ? 1.05 : 0.95;
-        scale *= zoom;
+    const mouseX = (e.clientX - offsetX) / scale;
+    const mouseY = (e.clientY - offsetY) / scale;
+
+    if (e.ctrlKey || e.metaKey) {
+        const factor = Math.pow(1.1, -Math.sign(e.deltaY));
+        const newScale = Math.min(Math.max(scale * factor, 0.05), 4);
+        
+        offsetX = e.clientX - mouseX * newScale;
+        offsetY = e.clientY - mouseY * newScale;
+        scale = newScale;
     } else {
         offsetX -= e.deltaX;
         offsetY -= e.deltaY;
@@ -102,11 +109,11 @@ window.addEventListener("wheel", e => {
     requestAnimationFrame(draw);
 }, { passive: false });
 
+// Tooltip Interaction
 window.addEventListener("mousemove", e => {
     const x = (e.clientX - offsetX) / scale;
     const y = (e.clientY - offsetY) / scale;
     
-    // Check collision with roughly the current area
     const t = tallies.find(t => x > t.x && x < t.x + 40 && y > t.y && y < t.y + 60);
     if (t) {
         tooltip.style.opacity = 1;
@@ -116,6 +123,13 @@ window.addEventListener("mousemove", e => {
     } else {
         tooltip.style.opacity = 0;
     }
+});
+
+// Resizing
+window.addEventListener("resize", () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    init(); 
 });
 
 init();
