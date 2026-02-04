@@ -2,7 +2,7 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const tooltip = document.getElementById("tooltip");
 
-/* ---------- CANVAS SIZE ---------- */
+// ---------- CANVAS SETUP ----------
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -10,48 +10,49 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
-/* ---------- IMPORTANT DATES ---------- */
+// ---------- TIMELINE SETTINGS ----------
 const grandmomBirth = new Date("1966-05-12");
-const fatherBirth = new Date("1984-05-12"); // example
-const myBirth = new Date("2004-05-12");     // example
-const today = new Date();
+const dadBirth = new Date(grandmomBirth);
+dadBirth.setFullYear(dadBirth.getFullYear() + 18);
+const myBirth = new Date(dadBirth);
+myBirth.setFullYear(myBirth.getFullYear() + 20);
 
-/* ---------- LAYOUT SETTINGS ---------- */
+const today = new Date();
+const msDay = 24 * 60 * 60 * 1000;
+const totalDays = Math.floor((today - grandmomBirth) / msDay);
+
+// ---------- GRID SETTINGS ----------
 const itemsPerRow = 60;
-const xSpacing = 16;
-const ySpacing = 50;
+const xSpacing = 14;
+const ySpacing = 55;
 const startX = 0;
 const startY = 0;
 
-/* ---------- CAMERA ---------- */
+// ---------- CAMERA ----------
 let scale = 1;
 let offsetX = 100;
 let offsetY = 100;
 
-/* ---------- PAN STATE ---------- */
+// ---------- PAN STATE ----------
 let isDragging = false;
-let dragX = 0;
-let dragY = 0;
+let dragStartX = 0;
+let dragStartY = 0;
 
-/* ---------- DATA ---------- */
+// ---------- DATA ARRAY ----------
 const tallies = [];
 
-/* ---------- GENERATE DAY-BY-DAY TALLIES ---------- */
-const msDay = 24 * 60 * 60 * 1000;
-const totalDays = Math.floor((today - grandmomBirth) / msDay);
-
+// ---------- GENERATE TALLIES DAY BY DAY ----------
 for (let i = 0; i <= totalDays; i++) {
   const date = new Date(grandmomBirth.getTime() + i * msDay);
 
-  let era = "Grandmom";
   let strokes = 1;
-
-  if (date >= fatherBirth && date < myBirth) {
-    era = "Father";
+  let person = "Grandmom";
+  if (date >= dadBirth && date < myBirth) {
     strokes = 2;
+    person = "Father";
   } else if (date >= myBirth) {
-    era = "Me";
     strokes = 3;
+    person = "Me";
   }
 
   const row = Math.floor(i / itemsPerRow);
@@ -61,11 +62,11 @@ for (let i = 0; i <= totalDays; i++) {
     x: startX + col * xSpacing,
     y: startY + row * ySpacing,
     strokes,
-    label: `${era} — ${date.toDateString()}`
+    text: `${person}: ${date.toDateString()}`
   });
 }
 
-/* ---------- DRAW ---------- */
+// ---------- DRAW FUNCTION ----------
 function draw() {
   ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
   ctx.clearRect(
@@ -76,32 +77,37 @@ function draw() {
   );
 
   tallies.forEach(t => {
-    for (let i = 0; i < t.strokes; i++) {
+    for (let s = 0; s < t.strokes; s++) {
       ctx.beginPath();
-      ctx.moveTo(t.x + i * 6, t.y);
-      ctx.lineTo(t.x + i * 6, t.y + 30);
+      ctx.moveTo(t.x + s * 6, t.y);
+      ctx.lineTo(t.x + s * 6, t.y + 30);
       ctx.strokeStyle = "rgba(0,0,0,0.85)";
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 2.7;
       ctx.lineCap = "round";
       ctx.stroke();
     }
   });
 }
 
-draw();
-
-/* ---------- ZOOM ---------- */
+// ---------- ZOOM (Ctrl + wheel) ----------
 canvas.addEventListener("wheel", e => {
-  e.preventDefault();
+  if (!e.ctrlKey) {
+    // Normal wheel = vertical pan
+    offsetY -= e.deltaY * 1.2;
+    offsetX -= e.deltaX;
+    draw();
+    return;
+  }
 
+  e.preventDefault();
   const mouseX = e.offsetX;
   const mouseY = e.offsetY;
-  const zoom = e.deltaY < 0 ? 1.1 : 0.9;
+  const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
 
   const wx = (mouseX - offsetX) / scale;
   const wy = (mouseY - offsetY) / scale;
 
-  scale = Math.min(Math.max(scale * zoom, 0.4), 5);
+  scale = Math.min(Math.max(scale * zoomFactor, 0.4), 5);
 
   offsetX = mouseX - wx * scale;
   offsetY = mouseY - wy * scale;
@@ -109,42 +115,47 @@ canvas.addEventListener("wheel", e => {
   draw();
 }, { passive: false });
 
-/* ---------- PAN ---------- */
+// ---------- PAN (drag) ----------
 canvas.addEventListener("mousedown", e => {
   isDragging = true;
-  dragX = e.clientX - offsetX;
-  dragY = e.clientY - offsetY;
+  dragStartX = e.clientX - offsetX;
+  dragStartY = e.clientY - offsetY;
 });
 
-window.addEventListener("mouseup", () => isDragging = false);
+window.addEventListener("mouseup", () => {
+  isDragging = false;
+});
 
 window.addEventListener("mousemove", e => {
   if (isDragging) {
-    offsetX = e.clientX - dragX;
-    offsetY = e.clientY - dragY;
+    offsetX = e.clientX - dragStartX;
+    offsetY = e.clientY - dragStartY;
     draw();
   }
 
-  /* ---------- HOVER ---------- */
-  const wx = (e.clientX - offsetX) / scale;
-  const wy = (e.clientY - offsetY) / scale;
-
+  // ---------- HOVER TOOLTIP ----------
+  const worldX = (e.clientX - offsetX) / scale;
+  const worldY = (e.clientY - offsetY) / scale;
   let hit = null;
+
   tallies.forEach(t => {
     if (
-      wx >= t.x - 4 &&
-      wx <= t.x + t.strokes * 6 + 4 &&
-      wy >= t.y &&
-      wy <= t.y + 30
+      worldX >= t.x - 4 &&
+      worldX <= t.x + t.strokes * 6 + 4 &&
+      worldY >= t.y &&
+      worldY <= t.y + 30
     ) hit = t;
   });
 
   if (hit) {
+    tooltip.style.left = e.clientX + 10 + "px";
+    tooltip.style.top = e.clientY + 10 + "px";
+    tooltip.textContent = hit.text;
     tooltip.style.opacity = 1;
-    tooltip.style.left = e.clientX + 12 + "px";
-    tooltip.style.top = e.clientY + 12 + "px";
-    tooltip.textContent = hit.label;
   } else {
     tooltip.style.opacity = 0;
   }
 });
+
+// ---------- INITIAL DRAW ----------
+draw();
