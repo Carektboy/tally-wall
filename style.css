@@ -2,13 +2,20 @@ html, body {
   margin: 0;
   padding: 0;
   background: #f4efe8;
-  overflow: auto; /* Required to scroll the 1000 entries */
+  overflow: auto; /* Allows vertical scrolling for the thousands of days */
+  display: flex;
+  justify-content: center; /* Centers the wall horizontally */
   font-family: sans-serif;
 }
 
 #wall {
   display: block;
   background: #f4efe8;
+  /* Decorative borders to act as a frame */
+  border-left: 30px solid #e8e2d8; 
+  border-right: 30px solid #e8e2d8;
+  box-shadow: 0 0 50px rgba(0,0,0,0.05);
+  margin: 40px auto; 
 }
 
 .tally {
@@ -18,12 +25,12 @@ html, body {
   stroke-linecap: round;
   stroke-linejoin: round;
   cursor: pointer;
-  transition: stroke 0.2s, stroke-width 0.2s;
+  transition: all 0.2s ease;
 }
 
-/* Highlight the whole group (|, ||, or |||) on hover */
+/* Hover effect for the generation groups */
 g:hover .tally {
-  stroke: #d32f2f; /* Red highlight from your design */
+  stroke: #d32f2f; /* Highlight color for interaction */
   stroke-width: 3.5;
 }
 
