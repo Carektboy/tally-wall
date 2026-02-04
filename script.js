@@ -1,4 +1,5 @@
 console.log("script loaded");
+
 const canvas = document.getElementById("wall");
 const ctx = canvas.getContext("2d");
 const tooltip = document.getElementById("tooltip");
@@ -9,31 +10,33 @@ let offsetX = 0;
 let offsetY = 0;
 
 let tallies = [];
-let contentWidth = 0;
 let contentHeight = 0;
 
 /* ================= CONFIG ================= */
-
-/* 👉 CHANGE THESE TO ADJUST GAPS 👇 */
-const GAP_X = 46;     // horizontal gap between tallies
-const GAP_Y = 60;     // vertical gap between rows
-const PER_ROW = 30;   // tallies per row
+const GAP_X = 46;
+const GAP_Y = 60;
+const PER_ROW = 30;
 
 const TALLY_WIDTH = 14;
 const TALLY_HEIGHT = 40;
-
 /* ========================================== */
 
+// ---------- RESIZE ----------
 function resizeCanvas() {
   canvas.width = window.innerWidth;
-  canvas.height = contentHeight;
+  canvas.height = window.innerHeight; // ✅ FIX
   draw();
 }
 
 window.addEventListener("resize", resizeCanvas);
 
-// ---------- STRIPE PATTERN ----------
-function createStripePattern(colors) {
+// ---------- STRIPE CACHE ----------
+const patternCache = new Map();
+
+function getStripePattern(colors) {
+  const key = colors.join(",");
+  if (patternCache.has(key)) return patternCache.get(key);
+
   const pCanvas = document.createElement("canvas");
   const pCtx = pCanvas.getContext("2d");
 
@@ -46,19 +49,20 @@ function createStripePattern(colors) {
     pCtx.fillRect(i * stripeWidth, 0, stripeWidth, TALLY_HEIGHT);
   });
 
-  return ctx.createPattern(pCanvas, "repeat");
+  const pattern = ctx.createPattern(pCanvas, "repeat");
+  patternCache.set(key, pattern);
+  return pattern;
 }
 
 // ---------- LOAD DATA ----------
 fetch("./data.json")
   .then(r => r.json())
-  .then(data => buildTallies(data.people));
+  .then(data => buildTallies(data.people))
+  .catch(err => console.error("JSON load failed", err));
 
 // ---------- BUILD ----------
 function buildTallies(people) {
   tallies = [];
-
-  console.log("people:", people.length);
 
   const startDate = new Date(people[0].dob);
   const today = new Date();
@@ -82,8 +86,12 @@ function buildTallies(people) {
   }
 
   const last = tallies[tallies.length - 1];
-  contentWidth = last.x + 200;
   contentHeight = last.y + 200;
+
+  // ✅ THIS is how scrollbar height is set
+  scrollContainer.scrollTop = 0;
+  scrollContainer.style.height = window.innerHeight + "px";
+  scrollContainer.scrollHeight = contentHeight;
 
   resizeCanvas();
 }
@@ -96,10 +104,10 @@ function draw() {
   ctx.setTransform(scale,0,0,scale,offsetX,offsetY);
 
   tallies.forEach(t => {
-    ctx.fillStyle = createStripePattern(t.colors);
+    ctx.fillStyle = getStripePattern(t.colors);
     ctx.fillRect(t.x, t.y - TALLY_HEIGHT, TALLY_WIDTH, TALLY_HEIGHT);
 
-    ctx.strokeStyle = "rgba(0,0,0,0.2)";
+    ctx.strokeStyle = "rgba(0,0,0,0.25)";
     ctx.strokeRect(t.x, t.y - TALLY_HEIGHT, TALLY_WIDTH, TALLY_HEIGHT);
   });
 }
@@ -116,7 +124,7 @@ canvas.addEventListener("wheel", e => {
   e.preventDefault();
 
   const zoom = e.deltaY < 0 ? 1.1 : 0.9;
-  scale = Math.min(Math.max(scale * zoom, 0.4), 8);
+  scale = Math.min(Math.max(scale * zoom, 0.4), 6);
   draw();
 }, { passive: false });
 
