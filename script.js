@@ -4,7 +4,7 @@ const tooltip = document.getElementById("tooltip");
 
 const dpr = window.devicePixelRatio || 1;
 
-/* ================== PEOPLE ================== */
+/* ================= PEOPLE ================= */
 const people = [
   { name: "Grandfather", born: "1943-01-01", died: "1985-01-01", color: "#444" },
   { name: "Grandmother", born: "1942-02-01", died: null, color: "#2d5a27" },
@@ -20,38 +20,17 @@ const people = [
 ];
 
 /* =============== CONFIG ================= */
-const TALLY_WIDTH = 14;
-const TALLY_HEIGHT = 120;
-const GAP_X = 38;
-const GAP_Y = 150;
-const STRIPE_WIDTH = 3;
+const ROW_GAP = 90;
+const TIME_SCALE = 0.06; // pixels per day
+const WIGGLE_AMPLITUDE = 8;
+const WIGGLE_STEP = 14;
 /* ======================================= */
 
-let scale = 0.7;
-let offsetX = 80;
-let offsetY = 80;
-let tallies = [];
-const patternCache = new Map();
+let scale = 0.9;
+let offsetX = 120;
+let offsetY = 120;
 
-/* ---------- STRIPE PATTERN ---------- */
-function makeStripePattern(color, index) {
-  const key = color + index;
-  if (patternCache.has(key)) return patternCache.get(key);
-
-  const p = document.createElement("canvas");
-  p.width = STRIPE_WIDTH * 4;
-  p.height = TALLY_HEIGHT;
-  const pctx = p.getContext("2d");
-
-  for (let i = 0; i < 4; i++) {
-    pctx.fillStyle = i === index % 4 ? color : "#e5e1db";
-    pctx.fillRect(i * STRIPE_WIDTH, 0, STRIPE_WIDTH, TALLY_HEIGHT);
-  }
-
-  const pattern = ctx.createPattern(p, "repeat");
-  patternCache.set(key, pattern);
-  return pattern;
-}
+let startDate;
 
 /* ---------- INIT ---------- */
 function init() {
@@ -60,90 +39,116 @@ function init() {
   canvas.style.width = innerWidth + "px";
   canvas.style.height = innerHeight + "px";
 
-  buildTallies();
+  startDate = new Date(
+    Math.min(...people.map(p => new Date(p.born)))
+  );
+
   draw();
 }
 
-/* ---------- BUILD TALLIES ---------- */
-function buildTallies() {
-  tallies = [];
-  const sorted = [...people].sort((a,b)=>new Date(a.born)-new Date(b.born));
-  const start = new Date(sorted[0].born);
-  const today = new Date();
-
-  let x = 0, y = 0;
-  const wrap = innerWidth - 200;
-
-  for (let d = new Date(start); d <= today; d.setDate(d.getDate()+1)) {
-    const alive = sorted.filter(p => {
-      const born = new Date(p.born);
-      const died = p.died ? new Date(p.died) : null;
-      return born <= d && (!died || d <= died);
-    });
-
-    if (x > wrap) {
-      x = 0;
-      y += GAP_Y;
-    }
-
-    tallies.push({
-      x, y,
-      date: d.toDateString(),
-      people: alive
-    });
-
-    x += GAP_X;
-  }
+/* ---------- UTILS ---------- */
+function daysBetween(a, b) {
+  return Math.floor((b - a) / 86400000);
 }
 
 /* ---------- DRAW ---------- */
 function draw() {
-  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "#f6f2ec";
-  ctx.fillRect(0,0,innerWidth,innerHeight);
+  ctx.fillRect(0, 0, innerWidth, innerHeight);
 
   ctx.save();
   ctx.translate(offsetX, offsetY);
   ctx.scale(scale, scale);
 
-  tallies.forEach(t => {
-    t.people.forEach((p, i) => {
-      ctx.fillStyle = makeStripePattern(p.color, i);
-      ctx.fillRect(t.x + i*4, t.y, TALLY_WIDTH, TALLY_HEIGHT);
-    });
+  people.forEach((p, row) => {
+    drawLifeLine(p, row);
   });
 
   ctx.restore();
 }
 
-/* ---------- INTERACTION ---------- */
+/* ---------- LIFE LINE ---------- */
+function drawLifeLine(person, row) {
+  const born = new Date(person.born);
+  const end = person.died ? new Date(person.died) : new Date();
+
+  const yBase = row * ROW_GAP;
+  const startX = daysBetween(startDate, born) * TIME_SCALE;
+  const endX = daysBetween(startDate, end) * TIME_SCALE;
+
+  ctx.strokeStyle = person.color;
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+
+  ctx.beginPath();
+
+  let x = startX;
+  let y = yBase;
+
+  ctx.moveTo(x, y);
+
+  for (; x <= endX; x += WIGGLE_STEP) {
+    const wiggle =
+      Math.sin(x * 0.05 + row) * WIGGLE_AMPLITUDE +
+      Math.cos(x * 0.03 + row * 3) * 2;
+
+    ctx.lineTo(x, yBase + wiggle);
+  }
+
+  ctx.stroke();
+
+  /* Name label */
+  ctx.fillStyle = "#222";
+  ctx.font = "13px system-ui";
+  ctx.fillText(person.name, startX - 10, yBase - 10);
+}
+
+/* ---------- ZOOM (FIXED – CURSOR ANCHORED) ---------- */
 window.addEventListener("wheel", e => {
   e.preventDefault();
-  if (e.ctrlKey) {
-    const zoom = Math.sign(e.deltaY) * -0.1;
-    scale = Math.min(Math.max(scale + zoom, 0.1), 3);
+
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX - rect.left - offsetX) / scale;
+  const cy = (e.clientY - rect.top - offsetY) / scale;
+
+  if (e.ctrlKey || e.metaKey) {
+    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+    const newScale = Math.min(Math.max(scale * zoomFactor, 0.2), 4);
+
+    offsetX = e.clientX - rect.left - cx * newScale;
+    offsetY = e.clientY - rect.top - cy * newScale;
+    scale = newScale;
   } else {
     offsetX -= e.deltaX;
     offsetY -= e.deltaY;
   }
-  requestAnimationFrame(draw);
-},{passive:false});
 
+  requestAnimationFrame(draw);
+}, { passive: false });
+
+/* ---------- TOOLTIP ---------- */
 window.addEventListener("mousemove", e => {
   const mx = (e.clientX - offsetX) / scale;
   const my = (e.clientY - offsetY) / scale;
 
-  const hit = tallies.find(t =>
-    mx > t.x && mx < t.x + 40 &&
-    my > t.y && my < t.y + TALLY_HEIGHT
-  );
+  const row = Math.round(my / ROW_GAP);
+  const person = people[row];
 
-  if (hit) {
-    tooltip.style.opacity = 1;
-    tooltip.style.left = e.clientX + 14 + "px";
-    tooltip.style.top = e.clientY + 14 + "px";
-    tooltip.innerHTML = `<strong>${hit.date}</strong><br>${hit.people.map(p=>p.name).join(", ")}`;
-  } else tooltip.style.opacity = 0;
+  if (!person) {
+    tooltip.style.opacity = 0;
+    return;
+  }
+
+  tooltip.style.opacity = 1;
+  tooltip.style.left = e.clientX + 12 + "px";
+  tooltip.style.top = e.clientY + 12 + "px";
+
+  tooltip.innerHTML = `
+    <strong>${person.name}</strong><br>
+    Born: ${person.born}<br>
+    ${person.died ? "Died: " + person.died : "Alive"}
+  `;
 });
 
 window.addEventListener("resize", init);
