@@ -1,173 +1,111 @@
-const canvas = document.getElementById("wall");
+const canvas = document.getElementById("tallyCanvas");
 const ctx = canvas.getContext("2d");
 const tooltip = document.getElementById("tooltip");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
 let scale = 1;
-let offsetX = 0;
-let offsetY = 0;
-
+let offsetX = 80;
+let offsetY = 80;
 let isDragging = false;
-let dragStart = { x: 0, y: 0 };
+let startX, startY;
 
-let tallies = [];
-let contentWidth = 0;
-let contentHeight = 0;
+const GAP_X = 26;        // space between tallies
+const GAP_Y = 90;        // space between people
+const LINE_HEIGHT = 50;
+const MAX_ZOOM = 6;
+const MIN_ZOOM = 0.6;
 
-// ---------- LOAD DATA ----------
-fetch("data.json")
-  .then(r => r.json())
-  .then(data => init(data.people));
+resize();
+window.addEventListener("resize", resize);
 
-function init(people) {
-  const startDate = new Date(people[0].date);
-  const today = new Date();
-  const msDay = 86400000;
-  const totalDays = Math.floor((today - startDate) / msDay);
-
-  const perRow = 40;          // wider spacing
-  const xGap = 34;
-  const yGap = 60;
-
-  tallies = [];
-
-  for (let i = 0; i <= totalDays; i++) {
-    const date = new Date(startDate.getTime() + i * msDay);
-    const row = Math.floor(i / perRow);
-    const col = i % perRow;
-
-    const activePeople = people.filter(p => new Date(p.date) <= date);
-
-    tallies.push({
-      x: col * xGap,
-      y: row * yGap,
-      date,
-      people: activePeople
-    });
-  }
-
-  const last = tallies[tallies.length - 1];
-  contentWidth = last.x + 300;
-  contentHeight = last.y + 300;
-
-  offsetX = canvas.width / 2;
-  offsetY = 100;
-
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
   draw();
 }
 
-// ---------- DRAW ----------
-function draw() {
-  ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
-  ctx.clearRect(
-    -offsetX / scale,
-    -offsetY / scale,
-    canvas.width / scale,
-    canvas.height / scale
-  );
-
-  ctx.lineWidth = 3;
-  ctx.lineCap = "round";
-
-  tallies.forEach(t => {
-    t.people.forEach((p, i) => {
-      ctx.strokeStyle = p.color;
-
-      ctx.beginPath();
-      ctx.moveTo(t.x + i * 8, t.y);
-      ctx.lineTo(t.x + i * 8, t.y + 28);
-      ctx.stroke();
+fetch("data.json")
+  .then(r => r.json())
+  .then(data => {
+    window.people = data.people.map(p => {
+      const years =
+        Math.floor((Date.now() - new Date(p.dob)) / (1000 * 60 * 60 * 24 * 365));
+      return { ...p, count: years };
     });
+    draw();
+  });
 
-    // Prisoner slash after 5th
-    if (t.people.length >= 5) {
-      ctx.strokeStyle = "#000";
-      ctx.beginPath();
-      ctx.moveTo(t.x - 2, t.y + 30);
-      ctx.lineTo(t.x + 34, t.y - 4);
-      ctx.stroke();
-    }
+function draw() {
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.setTransform(scale,0,0,scale,offsetX,offsetY);
+
+  let y = 0;
+
+  people.forEach(person => {
+    drawTallies(person, 0, y);
+    y += GAP_Y;
   });
 }
 
-// ---------- ZOOM & SCROLL ----------
-canvas.addEventListener("wheel", e => {
-  if (e.ctrlKey) {
-    e.preventDefault();
+function drawTallies(person, x, y) {
+  ctx.fillStyle = "#fff";
+  ctx.fillText(person.name, x, y - 10);
 
-    const zoom = e.deltaY < 0 ? 1.08 : 0.92;
-    const wx = (e.clientX - offsetX) / scale;
-    const wy = (e.clientY - offsetY) / scale;
+  for (let i = 0; i < person.count; i++) {
+    const tx = x + i * GAP_X;
 
-    scale *= zoom;
-    scale = Math.min(Math.max(scale, 0.25), 12);
-
-    offsetX = e.clientX - wx * scale;
-    offsetY = e.clientY - wy * scale;
-
-    clampCamera();
-    draw();
-  } else {
-    offsetX -= e.deltaX;
-    offsetY -= e.deltaY;
-    clampCamera();
-    draw();
+    if ((i + 1) % 5 === 0) {
+      // Prisoner cross
+      ctx.strokeStyle = "#ff4444";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(tx - GAP_X * 4, y + LINE_HEIGHT);
+      ctx.lineTo(tx, y);
+      ctx.stroke();
+    } else {
+      const color = person.colors[i % person.colors.length];
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(tx, y);
+      ctx.lineTo(tx, y + LINE_HEIGHT);
+      ctx.stroke();
+    }
   }
+}
+
+/* ───────── Zoom (Ctrl + Scroll only) ───────── */
+canvas.addEventListener("wheel", e => {
+  if (!e.ctrlKey) return;
+
+  e.preventDefault();
+
+  const zoom = e.deltaY < 0 ? 1.1 : 0.9;
+  const newScale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale * zoom));
+
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left - offsetX) / scale;
+  const my = (e.clientY - rect.top - offsetY) / scale;
+
+  scale = newScale;
+  offsetX = e.clientX - mx * scale;
+  offsetY = e.clientY - my * scale;
+
+  draw();
 }, { passive: false });
 
-// ---------- DRAG ----------
+/* ───────── Drag to pan ───────── */
 canvas.addEventListener("mousedown", e => {
   isDragging = true;
-  dragStart.x = e.clientX - offsetX;
-  dragStart.y = e.clientY - offsetY;
-});
-
-window.addEventListener("mousemove", e => {
-  if (isDragging) {
-    offsetX = e.clientX - dragStart.x;
-    offsetY = e.clientY - dragStart.y;
-    clampCamera();
-    draw();
-  } else {
-    handleHover(e);
-  }
+  startX = e.clientX - offsetX;
+  startY = e.clientY - offsetY;
 });
 
 window.addEventListener("mouseup", () => isDragging = false);
 
-// ---------- TOOLTIP ----------
-function handleHover(e) {
-  const x = (e.clientX - offsetX) / scale;
-  const y = (e.clientY - offsetY) / scale;
-
-  for (const t of tallies) {
-    if (x > t.x - 6 && x < t.x + 40 && y > t.y && y < t.y + 30) {
-      tooltip.style.left = e.clientX + 12 + "px";
-      tooltip.style.top = e.clientY + 12 + "px";
-      tooltip.textContent =
-        t.date.toDateString() + " — " +
-        t.people.map(p => p.name).join(", ");
-      tooltip.style.opacity = 1;
-      return;
-    }
-  }
-  tooltip.style.opacity = 0;
-}
-
-// ---------- CAMERA CLAMP ----------
-function clampCamera() {
-  const minX = canvas.width - contentWidth * scale;
-  const minY = canvas.height - contentHeight * scale;
-
-  offsetX = Math.min(0, Math.max(offsetX, minX));
-  offsetY = Math.min(0, Math.max(offsetY, minY));
-}
-
-// ---------- RESIZE ----------
-window.addEventListener("resize", () => {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+window.addEventListener("mousemove", e => {
+  if (!isDragging) return;
+  offsetX = e.clientX - startX;
+  offsetY = e.clientY - startY;
   draw();
 });
