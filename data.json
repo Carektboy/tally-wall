@@ -1,0 +1,18 @@
+{
+  "tallies": [
+    { "id": 1, "x": 80, "y": 120, "rotation": -3, "note": "First night alone" },
+    { "id": 2, "x": 100, "y": 120, "rotation": 4, "note": "Second night, still counting" },
+    { "id": 59, "x": 1240, "y": 120, "rotation": 2, "note": "End of row one" },
+    { "id": 60, "x": 1260, "y": 120, "rotation": -4, "note": "Break coming..." },
+    
+    { "id": 61, "x": 80, "y": 260, "rotation": 5, "note": "Start of row two" },
+    { "id": 62, "x": 100, "y": 260, "rotation": -1, "note": "Still counting" },
+    
+
+    
+ 
+    { "id": 961, "x": 80, "y": 2360, "rotation": 3, "note": "Almost there" },
+
+    { "id": 1000, "x": 860, "y": 2360, "rotation": -2, "note": "The Thousandth Night" }
+  ]
+}
