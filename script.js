@@ -2,7 +2,7 @@ const svg = document.getElementById("wall");
 const tooltip = document.getElementById("tooltip");
 
 // 1. DATE SETTINGS (Grandmother born in 1945 as an example)
-const gMomBirth = new Date("1945-05-12"); 
+const gMomBirth = new Date("1965-05-12"); 
 const dadBirth = new Date(gMomBirth);
 dadBirth.setFullYear(dadBirth.getFullYear() + 18); 
 
