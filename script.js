@@ -5,14 +5,6 @@ const tooltip = document.getElementById("tooltip");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// -------- ERA COLORS --------
-const ERA_COLORS = {
-  grandma: ["#2e7d32"],
-  father: ["#2e7d32", "#1565c0"],
-  me: ["#2e7d32", "#1565c0", "#ef6c00"]
-};
-
-// -------- CAMERA --------
 let scale = 1;
 let offsetX = 0;
 let offsetY = 0;
@@ -20,65 +12,53 @@ let offsetY = 0;
 let isDragging = false;
 let dragStart = { x: 0, y: 0 };
 
-// -------- DATA --------
 let tallies = [];
+let contentWidth = 0;
+let contentHeight = 0;
 
-// -------- LOAD DATA --------
+// ---------- LOAD DATA ----------
 fetch("data.json")
-  .then(res => res.json())
-  .then(data => init(data));
+  .then(r => r.json())
+  .then(data => init(data.people));
 
-function init(data) {
-  const grandmaBirth = new Date(data.grandmomBirth);
-  const dadBirth = new Date(grandmaBirth);
-  dadBirth.setFullYear(dadBirth.getFullYear() + data.dadBirthOffsetYears);
-
-  const myBirth = new Date(dadBirth);
-  myBirth.setFullYear(myBirth.getFullYear() + data.myBirthOffsetYears);
-
+function init(people) {
+  const startDate = new Date(people[0].date);
   const today = new Date();
   const msDay = 86400000;
-  const totalDays = Math.floor((today - grandmaBirth) / msDay);
+  const totalDays = Math.floor((today - startDate) / msDay);
 
-  const perRow = 50;
-  const xGap = 26;
-  const yGap = 52;
+  const perRow = 40;          // wider spacing
+  const xGap = 34;
+  const yGap = 60;
 
   tallies = [];
 
   for (let i = 0; i <= totalDays; i++) {
+    const date = new Date(startDate.getTime() + i * msDay);
     const row = Math.floor(i / perRow);
     const col = i % perRow;
-    const date = new Date(grandmaBirth.getTime() + i * msDay);
 
-    let era = "grandma";
-    let strokes = 1;
-
-    if (date >= dadBirth && date < myBirth) {
-      era = "father";
-      strokes = 2;
-    } else if (date >= myBirth) {
-      era = "me";
-      strokes = 3;
-    }
+    const activePeople = people.filter(p => new Date(p.date) <= date);
 
     tallies.push({
       x: col * xGap,
       y: row * yGap,
-      era,
-      strokes,
-      label: `${era.toUpperCase()} — ${date.toDateString()}`
+      date,
+      people: activePeople
     });
   }
 
-  // Initial camera position
+  const last = tallies[tallies.length - 1];
+  contentWidth = last.x + 300;
+  contentHeight = last.y + 300;
+
   offsetX = canvas.width / 2;
-  offsetY = 80;
+  offsetY = 100;
 
   draw();
 }
 
-// -------- DRAW --------
+// ---------- DRAW ----------
 function draw() {
   ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
   ctx.clearRect(
@@ -92,46 +72,52 @@ function draw() {
   ctx.lineCap = "round";
 
   tallies.forEach(t => {
-    const colors = ERA_COLORS[t.era];
-    for (let i = 0; i < t.strokes; i++) {
-      ctx.strokeStyle = colors[i];
+    t.people.forEach((p, i) => {
+      ctx.strokeStyle = p.color;
+
       ctx.beginPath();
-      ctx.moveTo(t.x + i * 7, t.y);
-      ctx.lineTo(t.x + i * 7, t.y + 26);
+      ctx.moveTo(t.x + i * 8, t.y);
+      ctx.lineTo(t.x + i * 8, t.y + 28);
+      ctx.stroke();
+    });
+
+    // Prisoner slash after 5th
+    if (t.people.length >= 5) {
+      ctx.strokeStyle = "#000";
+      ctx.beginPath();
+      ctx.moveTo(t.x - 2, t.y + 30);
+      ctx.lineTo(t.x + 34, t.y - 4);
       ctx.stroke();
     }
   });
 }
 
-// -------- ZOOM + SCROLL --------
+// ---------- ZOOM & SCROLL ----------
 canvas.addEventListener("wheel", e => {
   if (e.ctrlKey) {
-    // ---- ZOOM ----
     e.preventDefault();
 
-    const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
+    const zoom = e.deltaY < 0 ? 1.08 : 0.92;
+    const wx = (e.clientX - offsetX) / scale;
+    const wy = (e.clientY - offsetY) / scale;
 
-    const worldX = (e.clientX - offsetX) / scale;
-    const worldY = (e.clientY - offsetY) / scale;
+    scale *= zoom;
+    scale = Math.min(Math.max(scale, 0.25), 12);
 
-    scale *= zoomFactor;
-    scale = Math.min(Math.max(scale, 0.2), 12);
+    offsetX = e.clientX - wx * scale;
+    offsetY = e.clientY - wy * scale;
 
-    offsetX = e.clientX - worldX * scale;
-    offsetY = e.clientY - worldY * scale;
-
+    clampCamera();
     draw();
   } else {
-    // ---- SCROLL / PAN ----
     offsetX -= e.deltaX;
     offsetY -= e.deltaY;
-
     clampCamera();
     draw();
   }
 }, { passive: false });
 
-// -------- DRAG PAN (OPTIONAL) --------
+// ---------- DRAG ----------
 canvas.addEventListener("mousedown", e => {
   isDragging = true;
   dragStart.x = e.clientX - offsetX;
@@ -149,25 +135,20 @@ window.addEventListener("mousemove", e => {
   }
 });
 
-window.addEventListener("mouseup", () => {
-  isDragging = false;
-});
+window.addEventListener("mouseup", () => isDragging = false);
 
-// -------- HOVER --------
+// ---------- TOOLTIP ----------
 function handleHover(e) {
   const x = (e.clientX - offsetX) / scale;
   const y = (e.clientY - offsetY) / scale;
 
   for (const t of tallies) {
-    if (
-      x > t.x - 6 &&
-      x < t.x + 20 &&
-      y > t.y &&
-      y < t.y + 30
-    ) {
+    if (x > t.x - 6 && x < t.x + 40 && y > t.y && y < t.y + 30) {
       tooltip.style.left = e.clientX + 12 + "px";
       tooltip.style.top = e.clientY + 12 + "px";
-      tooltip.textContent = t.label;
+      tooltip.textContent =
+        t.date.toDateString() + " — " +
+        t.people.map(p => p.name).join(", ");
       tooltip.style.opacity = 1;
       return;
     }
@@ -175,14 +156,16 @@ function handleHover(e) {
   tooltip.style.opacity = 0;
 }
 
-// -------- CAMERA LIMITS --------
+// ---------- CAMERA CLAMP ----------
 function clampCamera() {
-  const limit = 8000;
-  offsetX = Math.max(-limit, Math.min(offsetX, limit));
-  offsetY = Math.max(-limit, Math.min(offsetY, limit));
+  const minX = canvas.width - contentWidth * scale;
+  const minY = canvas.height - contentHeight * scale;
+
+  offsetX = Math.min(0, Math.max(offsetX, minX));
+  offsetY = Math.min(0, Math.max(offsetY, minY));
 }
 
-// -------- RESIZE --------
+// ---------- RESIZE ----------
 window.addEventListener("resize", () => {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
