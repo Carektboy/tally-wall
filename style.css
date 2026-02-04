@@ -4,8 +4,7 @@ html, body {
   width: 100vw;
   height: 100vh;
   overflow: hidden; 
-  /* Parchment background for a professional "paper" look */
-  background: #fdfaf6; 
+  background: #fdfaf6; /* Parchment off-white */
   font-family: system-ui, -apple-system, sans-serif;
 }
 
