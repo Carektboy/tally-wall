@@ -1,5 +1,5 @@
 const canvas = document.getElementById("tallyCanvas");
-const ctx = canvas.getContext("2d", { alpha: false });
+const ctx = canvas.getContext("2d");
 const tooltip = document.getElementById("tooltip");
 
 const data = {
@@ -14,22 +14,23 @@ const data = {
     ]
 };
 
-let scale = 0.8, offsetX = 50, offsetY = 50;
+let scale = 0.8;
+let offsetX = 50;
+let offsetY = 50;
 let tallies = [];
 const cache = new Map();
 
-// High Performance: Pre-draw each person's stroke once
 function preRenderMarks() {
     data.people.forEach(p => {
         const off = document.createElement('canvas');
-        off.width = 20; off.height = 60;
+        off.width = 30; off.height = 70;
         const oCtx = off.getContext('2d');
         oCtx.strokeStyle = p.color;
-        oCtx.lineWidth = 4;
+        oCtx.lineWidth = 5;
         oCtx.lineCap = "round";
         oCtx.beginPath();
-        oCtx.moveTo(5, 5);
-        oCtx.bezierCurveTo(12, 20, -2, 40, 5, 55); // Organic S-Curve
+        oCtx.moveTo(10, 5);
+        oCtx.bezierCurveTo(18, 25, 2, 45, 10, 65);
         oCtx.stroke();
         cache.set(p.name, off);
     });
@@ -45,7 +46,7 @@ function init() {
     const today = new Date();
     const totalDays = Math.floor((today - startDate) / 86400000);
 
-    const wrapWidth = window.innerWidth - 150;
+    const wrapWidth = window.innerWidth - 100;
     let curX = 0, curY = 0;
 
     tallies = [];
@@ -61,9 +62,9 @@ function init() {
             date: date.toDateString(), 
             people: alive.map(p => p.name) 
         });
-        curX += 45; // Spacing between days
+        curX += 45;
     }
-    requestAnimationFrame(draw);
+    draw(); // Fail-safe immediate draw
 }
 
 function draw() {
@@ -74,22 +75,20 @@ function draw() {
     ctx.translate(offsetX, offsetY);
     ctx.scale(scale, scale);
 
-    // Viewport Culling: Only draw visible rows
     const vTop = -offsetY / scale;
     const vBottom = (canvas.height - offsetY) / scale;
 
     tallies.forEach(t => {
-        if (t.y < vTop - 100 || t.y > vBottom + 100) return;
-
+        if (t.y < vTop - 150 || t.y > vBottom + 150) return;
         t.people.forEach((name, j) => {
             const img = cache.get(name);
-            ctx.drawImage(img, t.x + (j * 4), t.y); // Overlap logic (4px)
+            if (img) ctx.drawImage(img, t.x + (j * 5), t.y);
         });
     });
     ctx.restore();
 }
 
-// FIXED: Zoom-to-Cursor Logic
+// Interaction
 window.addEventListener("wheel", e => {
     e.preventDefault();
     const mouseX = (e.clientX - offsetX) / scale;
@@ -98,7 +97,6 @@ window.addEventListener("wheel", e => {
     if (e.ctrlKey || e.metaKey) {
         const factor = Math.pow(1.1, -Math.sign(e.deltaY));
         const newScale = Math.min(Math.max(scale * factor, 0.05), 4);
-        
         offsetX = e.clientX - mouseX * newScale;
         offsetY = e.clientY - mouseY * newScale;
         scale = newScale;
@@ -106,15 +104,14 @@ window.addEventListener("wheel", e => {
         offsetX -= e.deltaX;
         offsetY -= e.deltaY;
     }
-    requestAnimationFrame(draw);
+    draw();
 }, { passive: false });
 
-// Tooltip Interaction
 window.addEventListener("mousemove", e => {
     const x = (e.clientX - offsetX) / scale;
     const y = (e.clientY - offsetY) / scale;
+    const t = tallies.find(t => x > t.x && x < t.x + 40 && y > t.y && y < t.y + 70);
     
-    const t = tallies.find(t => x > t.x && x < t.x + 40 && y > t.y && y < t.y + 60);
     if (t) {
         tooltip.style.opacity = 1;
         tooltip.style.left = e.clientX + 15 + "px";
@@ -125,11 +122,7 @@ window.addEventListener("mousemove", e => {
     }
 });
 
-// Resizing
-window.addEventListener("resize", () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    init(); 
-});
+window.addEventListener("resize", () => init());
 
+// Start the app
 init();
