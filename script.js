@@ -2,33 +2,37 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const tooltip = document.getElementById("tooltip");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+// ---------- CANVAS SIZE (CRITICAL FIX)
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
 
-// camera state
+// ---------- CAMERA
 let scale = 1;
-let offsetX = 0;
-let offsetY = 0;
+let offsetX = 200;
+let offsetY = 200;
 
-// pan state
+// ---------- PAN STATE
 let isDragging = false;
-let dragStartX = 0;
-let dragStartY = 0;
+let startX = 0;
+let startY = 0;
 
-// data
+// ---------- DATA
 let tallies = [];
 
-// load data.json
+// ---------- LOAD DATA
 fetch("./data.json")
-  .then(res => res.json())
-  .then(json => {
-    tallies = json.tallies;
+  .then(r => r.json())
+  .then(data => {
+    tallies = data.tallies;
     draw();
   });
 
-// draw contents
+// ---------- DRAW
 function draw() {
-  // clear and reset transform
   ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
   ctx.clearRect(
     -offsetX / scale,
@@ -37,12 +41,11 @@ function draw() {
     canvas.height / scale
   );
 
-  // draw each tally
   tallies.forEach(t => {
     for (let i = 0; i < t.value; i++) {
       ctx.beginPath();
       ctx.moveTo(t.x + i * 8, t.y);
-      ctx.lineTo(t.x + i * 8, t.y + 20);
+      ctx.lineTo(t.x + i * 8, t.y + 30);
       ctx.strokeStyle = "rgba(0,0,0,0.85)";
       ctx.lineWidth = 3;
       ctx.stroke();
@@ -50,36 +53,30 @@ function draw() {
   });
 }
 
-// zoom around cursor
+// ---------- ZOOM (ANCHOR TO CURSOR)
 canvas.addEventListener("wheel", e => {
   e.preventDefault();
-  const zoomIntensity = 1.1;
+
   const mouseX = e.offsetX;
   const mouseY = e.offsetY;
-  const wheel = e.deltaY < 0 ? 1 : -1;
+  const zoom = e.deltaY < 0 ? 1.1 : 0.9;
 
-  // compute scale
-  const zoom = wheel > 0 ? zoomIntensity : 1 / zoomIntensity;
-  const newScale = Math.min(Math.max(scale * zoom, 0.5), 5);
-
-  // world coords under cursor before zoom
   const wx = (mouseX - offsetX) / scale;
   const wy = (mouseY - offsetY) / scale;
 
-  scale = newScale;
+  scale = Math.min(Math.max(scale * zoom, 0.4), 6);
 
-  // adjust offsets so point under cursor stays
   offsetX = mouseX - wx * scale;
   offsetY = mouseY - wy * scale;
 
   draw();
 }, { passive: false });
 
-// pan with mouse drag
+// ---------- PAN
 canvas.addEventListener("mousedown", e => {
   isDragging = true;
-  dragStartX = e.clientX - offsetX;
-  dragStartY = e.clientY - offsetY;
+  startX = e.clientX - offsetX;
+  startY = e.clientY - offsetY;
 });
 
 window.addEventListener("mouseup", () => {
@@ -88,41 +85,31 @@ window.addEventListener("mouseup", () => {
 
 window.addEventListener("mousemove", e => {
   if (isDragging) {
-    offsetX = e.clientX - dragStartX;
-    offsetY = e.clientY - dragStartY;
+    offsetX = e.clientX - startX;
+    offsetY = e.clientY - startY;
     draw();
   }
 
-  // hover detection
-  const worldX = (e.clientX - offsetX) / scale;
-  const worldY = (e.clientY - offsetY) / scale;
-  let found = null;
+  // ---------- HOVER
+  const wx = (e.clientX - offsetX) / scale;
+  const wy = (e.clientY - offsetY) / scale;
 
+  let hit = null;
   tallies.forEach(t => {
-    // basic hit-test area
     if (
-      worldX >= t.x - 10 &&
-      worldX <= t.x + t.value * 8 + 10 &&
-      worldY >= t.y - 10 &&
-      worldY <= t.y + 30
-    ) {
-      found = t;
-    }
+      wx >= t.x - 5 &&
+      wx <= t.x + t.value * 8 + 5 &&
+      wy >= t.y &&
+      wy <= t.y + 30
+    ) hit = t;
   });
 
-  if (found) {
+  if (hit) {
     tooltip.style.opacity = 1;
     tooltip.style.left = e.clientX + 12 + "px";
     tooltip.style.top = e.clientY + 12 + "px";
-    tooltip.innerHTML = `<b>${found.label}</b>`;
+    tooltip.textContent = hit.label;
   } else {
     tooltip.style.opacity = 0;
   }
-});
-
-// adjust canvas on resize
-window.addEventListener("resize", () => {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  draw();
 });
