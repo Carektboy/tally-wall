@@ -2,29 +2,22 @@ html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  overflow: auto;
-  background: #0e0e0e;
-  color: white;
+  overflow: hidden; /* Prevent browser scrollbars */
+  background: #ffdab9; /* Peach Background */
+  color: #4a3728; /* Darker text for readability */
   font-family: system-ui, sans-serif;
-}
-
-#wrapper {
-  position: relative;
-  min-height: 200vh; /* allows scrolling */
-}
-
-canvas {
-  display: block;
 }
 
 #tooltip {
   position: fixed;
   pointer-events: none;
-  background: rgba(0,0,0,0.85);
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 13px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  font-size: 14px;
   opacity: 0;
   transition: opacity 0.15s;
-  white-space: nowrap;
+  z-index: 1000;
 }
