@@ -2,33 +2,25 @@ html, body {
   margin: 0;
   padding: 0;
   background: #f4efe8;
-  overflow-x: hidden; /* Prevents awkward side-scrolling on mobile */
   font-family: sans-serif;
+  overflow-x: hidden;
 }
 
-#wall {
+canvas {
   display: block;
-  background: #f4efe8;
   margin: 0 auto;
-  /* Removed borders to maximize mobile space */
-}
-
-.tally {
-  fill: none;
-  stroke: rgba(0,0,0,0.85); 
-  stroke-width: 4.5; /* Even thicker for mobile visibility */
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  cursor: crosshair;
 }
 
 #tooltip {
   position: fixed;
-  background: rgba(0,0,0,0.85);
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(0,0,0,0.9);
   color: #fff;
-  padding: 10px;
-  font-size: 14px;
-  border-radius: 5px;
-  pointer-events: none;
-  opacity: 0;
-  z-index: 100;
+  padding: 15px;
+  font-size: 16px;
+  text-align: center;
+  z-index: 1000;
 }
