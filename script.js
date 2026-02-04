@@ -1,5 +1,5 @@
 const canvas = document.getElementById("tallyCanvas");
-const ctx = canvas.getContext("2d", { alpha: false });
+const ctx = canvas.getContext("2d");
 const tooltip = document.getElementById("tooltip");
 
 const dpr = window.devicePixelRatio || 1;
@@ -19,17 +19,19 @@ const people = [
   { name: "Cousin 2", born: "2009-01-09", died: null, color: "#065f46" }
 ];
 
-/* =============== CONFIG ================= */
-const ROW_GAP = 90;
-const TIME_SCALE = 0.06; // pixels per day
-const WIGGLE_AMPLITUDE = 8;
-const WIGGLE_STEP = 14;
-/* ======================================= */
+/* ================= CONFIG ================= */
+const DAY_GAP = 22;        // horizontal spacing between days
+const ROW_GAP = 90;        // vertical spacing between rows
+const TALLY_HEIGHT = 42;
+const TALLY_SPREAD = 6;    // horizontal spread between people
+const WIGGLE = 3;          // subtle hand-drawn feel
+/* ========================================= */
 
-let scale = 0.9;
+let scale = 0.8;
 let offsetX = 120;
 let offsetY = 120;
 
+let tallies = [];
 let startDate;
 
 /* ---------- INIT ---------- */
@@ -43,81 +45,102 @@ function init() {
     Math.min(...people.map(p => new Date(p.born)))
   );
 
+  buildTallies();
   draw();
 }
 
-/* ---------- UTILS ---------- */
-function daysBetween(a, b) {
-  return Math.floor((b - a) / 86400000);
+/* ---------- BUILD ---------- */
+function buildTallies() {
+  tallies = [];
+
+  const today = new Date();
+  const totalDays = Math.floor((today - startDate) / 86400000);
+
+  let x = 0;
+  let y = 0;
+  const maxPerRow = Math.floor(innerWidth / DAY_GAP) - 4;
+
+  for (let i = 0; i <= totalDays; i++) {
+    const date = new Date(startDate.getTime() + i * 86400000);
+
+    const alive = people.filter(p =>
+      new Date(p.born) <= date &&
+      (!p.died || new Date(p.died) >= date)
+    );
+
+    tallies.push({
+      x: x * DAY_GAP,
+      y: y * ROW_GAP,
+      date,
+      alive
+    });
+
+    x++;
+    if (x > maxPerRow) {
+      x = 0;
+      y++;
+    }
+  }
 }
 
 /* ---------- DRAW ---------- */
 function draw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = "#f6f2ec";
+  ctx.fillStyle = "#fdfaf6";
   ctx.fillRect(0, 0, innerWidth, innerHeight);
 
   ctx.save();
   ctx.translate(offsetX, offsetY);
   ctx.scale(scale, scale);
 
-  people.forEach((p, row) => {
-    drawLifeLine(p, row);
+  tallies.forEach(t => {
+    t.alive.forEach((p, i) => {
+      drawTally(
+        t.x + i * TALLY_SPREAD,
+        t.y,
+        p.color,
+        i
+      );
+    });
   });
 
   ctx.restore();
 }
 
-/* ---------- LIFE LINE ---------- */
-function drawLifeLine(person, row) {
-  const born = new Date(person.born);
-  const end = person.died ? new Date(person.died) : new Date();
-
-  const yBase = row * ROW_GAP;
-  const startX = daysBetween(startDate, born) * TIME_SCALE;
-  const endX = daysBetween(startDate, end) * TIME_SCALE;
-
-  ctx.strokeStyle = person.color;
+/* ---------- WIGGLY TALLY ---------- */
+function drawTally(x, y, color, seed) {
+  ctx.strokeStyle = color;
   ctx.lineWidth = 3;
   ctx.lineCap = "round";
 
   ctx.beginPath();
 
-  let x = startX;
-  let y = yBase;
+  const wiggleX = () => (Math.random() - 0.5) * WIGGLE;
+  const wiggleY = () => (Math.random() - 0.5) * WIGGLE;
 
-  ctx.moveTo(x, y);
-
-  for (; x <= endX; x += WIGGLE_STEP) {
-    const wiggle =
-      Math.sin(x * 0.05 + row) * WIGGLE_AMPLITUDE +
-      Math.cos(x * 0.03 + row * 3) * 2;
-
-    ctx.lineTo(x, yBase + wiggle);
-  }
+  ctx.moveTo(x + wiggleX(), y + wiggleY());
+  ctx.lineTo(
+    x + wiggleX(),
+    y - TALLY_HEIGHT + wiggleY()
+  );
 
   ctx.stroke();
-
-  /* Name label */
-  ctx.fillStyle = "#222";
-  ctx.font = "13px system-ui";
-  ctx.fillText(person.name, startX - 10, yBase - 10);
 }
 
-/* ---------- ZOOM (FIXED – CURSOR ANCHORED) ---------- */
+/* ---------- ZOOM (CURSOR-CENTERED, FIXED) ---------- */
 window.addEventListener("wheel", e => {
   e.preventDefault();
 
   const rect = canvas.getBoundingClientRect();
-  const cx = (e.clientX - rect.left - offsetX) / scale;
-  const cy = (e.clientY - rect.top - offsetY) / scale;
+  const mx = (e.clientX - rect.left - offsetX) / scale;
+  const my = (e.clientY - rect.top - offsetY) / scale;
 
   if (e.ctrlKey || e.metaKey) {
-    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-    const newScale = Math.min(Math.max(scale * zoomFactor, 0.2), 4);
+    const zoom = e.deltaY < 0 ? 1.1 : 0.9;
+    const newScale = Math.min(Math.max(scale * zoom, 0.25), 4);
 
-    offsetX = e.clientX - rect.left - cx * newScale;
-    offsetY = e.clientY - rect.top - cy * newScale;
+    offsetX = e.clientX - rect.left - mx * newScale;
+    offsetY = e.clientY - rect.top - my * newScale;
     scale = newScale;
   } else {
     offsetX -= e.deltaX;
@@ -132,23 +155,22 @@ window.addEventListener("mousemove", e => {
   const mx = (e.clientX - offsetX) / scale;
   const my = (e.clientY - offsetY) / scale;
 
-  const row = Math.round(my / ROW_GAP);
-  const person = people[row];
+  const t = tallies.find(t =>
+    mx > t.x - 6 &&
+    mx < t.x + 20 &&
+    my < t.y &&
+    my > t.y - TALLY_HEIGHT
+  );
 
-  if (!person) {
+  if (!t) {
     tooltip.style.opacity = 0;
     return;
   }
 
   tooltip.style.opacity = 1;
-  tooltip.style.left = e.clientX + 12 + "px";
-  tooltip.style.top = e.clientY + 12 + "px";
-
-  tooltip.innerHTML = `
-    <strong>${person.name}</strong><br>
-    Born: ${person.born}<br>
-    ${person.died ? "Died: " + person.died : "Alive"}
-  `;
+  tooltip.style.left = e.clientX + 14 + "px";
+  tooltip.style.top = e.clientY + 14 + "px";
+  tooltip.innerHTML = `<strong>${t.date.toDateString()}</strong>`;
 });
 
 window.addEventListener("resize", init);
