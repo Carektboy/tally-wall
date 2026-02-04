@@ -1,11 +1,39 @@
 {
   "people": [
-    { "name": "Grandmother", "dob": "1938-02-01", "colors": ["#3cff3c"] },
-    { "name": "Father", "dob": "1969-05-25", "colors": ["#3cff3c", "#3ca0ff"] },
-    { "name": "Mother", "dob": "1980-01-29", "colors": ["#3cff3c", "#3ca0ff"] },
-    { "name": "Aunt", "dob": "1985-02-07", "colors": ["#3cff3c", "#3ca0ff"] },
-    { "name": "Samip", "dob": "2004-08-07", "colors": ["#3cff3c", "#3ca0ff", "#ff9f1c"] },
-    { "name": "Kabir", "dob": "2005-04-05", "colors": ["#3cff3c", "#3ca0ff", "#ff9f1c"] },
-    { "name": "Sangram", "dob": "2008-05-07", "colors": ["#3cff3c", "#3ca0ff", "#ff9f1c"] }
+    {
+      "name": "Grandmother",
+      "dob": "1938-02-01",
+      "colors": ["#2e7d32"]
+    },
+    {
+      "name": "Father",
+      "dob": "1969-05-25",
+      "colors": ["#2e7d32", "#1565c0"]
+    },
+    {
+      "name": "Mother",
+      "dob": "1980-01-29",
+      "colors": ["#2e7d32", "#1565c0"]
+    },
+    {
+      "name": "Aunt",
+      "dob": "1985-02-07",
+      "colors": ["#2e7d32", "#1565c0"]
+    },
+    {
+      "name": "Samip",
+      "dob": "2004-08-07",
+      "colors": ["#2e7d32", "#1565c0", "#ef6c00"]
+    },
+    {
+      "name": "Kabir",
+      "dob": "2005-04-05",
+      "colors": ["#2e7d32", "#1565c0", "#ef6c00"]
+    },
+    {
+      "name": "Sangram",
+      "dob": "2008-05-07",
+      "colors": ["#2e7d32", "#1565c0", "#ef6c00"]
+    }
   ]
 }
