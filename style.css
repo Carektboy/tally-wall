@@ -1,21 +1,30 @@
-* {
-  box-sizing: border-box;
-}
-
-body {
+html, body {
   margin: 0;
-  background: #111;
-  color: #fff;
-  font-family: Arial, Helvetica, sans-serif;
+  padding: 0;
+  height: 100%;
+  overflow: auto;
+  background: #0e0e0e;
+  color: white;
+  font-family: system-ui, sans-serif;
 }
 
-/* SCROLL FIX */
-#scroll-container {
-  height: 100vh;
-  overflow-y: auto;
-  overflow-x: hidden;
+#wrapper {
+  position: relative;
+  min-height: 200vh; /* allows scrolling */
 }
 
 canvas {
   display: block;
+}
+
+#tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(0,0,0,0.85);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  white-space: nowrap;
 }
