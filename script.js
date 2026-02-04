@@ -2,6 +2,7 @@ const canvas = document.getElementById("tallyCanvas");
 const ctx = canvas.getContext("2d");
 const tooltip = document.getElementById("tooltip");
 
+// Embedded data to ensure GitHub Pages loads correctly
 const data = {
   "people": [
     { "name": "Grandmother", "dob": "1938-02-01", "colors": ["#2d5a27"] },
@@ -27,6 +28,7 @@ let tallies = [];
 init(data.people);
 
 function init(people) {
+  // Sort people by birth date
   people.sort((a, b) => new Date(a.dob) - new Date(b.dob));
   const startDate = new Date(people[0].dob);
   const today = new Date();
@@ -34,8 +36,8 @@ function init(people) {
   const totalDays = Math.floor((today - startDate) / msDay);
 
   const perRow = 30; 
-  const xGap = 130; // Spacing between daily groups
-  const yGap = 100; // Spacing between rows
+  const xGap = 100; // Gap between different days
+  const yGap = 120; // Gap between rows
 
   tallies = [];
 
@@ -53,7 +55,7 @@ function init(people) {
     });
   }
 
-  // Focus on 'Today'
+  // Auto-focus on "Today" (the end of the list)
   const lastTally = tallies[tallies.length - 1];
   offsetX = (canvas.width / 2) - (lastTally.x * scale);
   offsetY = (canvas.height / 2) - (lastTally.y * scale);
@@ -66,8 +68,11 @@ function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
   ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
-  ctx.lineWidth = 4;
+  
+  // Fatter line width
+  ctx.lineWidth = 8; 
   ctx.lineCap = "round";
+  ctx.lineJoin = "round";
 
   tallies.forEach(t => {
     // Optimization: Don't draw if off-screen
@@ -75,20 +80,24 @@ function draw() {
     const screenY = t.y * scale + offsetY;
     if (screenX < -200 || screenX > canvas.width + 200 || screenY < -200 || screenY > canvas.height + 200) return;
 
-    // Draw stripes for each person
     t.people.forEach((p, i) => {
-      ctx.strokeStyle = p.colors[0];
+      ctx.strokeStyle = p.colors[0] + "EE"; // Slight transparency for overlap look
+      
+      // Individual stripe overlap (i * 5)
+      const xPos = t.x + (i * 5); 
+      const yStart = t.y;
+      const yEnd = t.y + 40;
+      
       ctx.beginPath();
-      ctx.moveTo(t.x + (i * 14), t.y);
-      ctx.lineTo(t.x + (i * 14), t.y + 40);
+      ctx.moveTo(xPos, yStart);
+      // Subtle curve
+      ctx.quadraticCurveTo(xPos + 6, yStart + 20, xPos + 2, yEnd);
       ctx.stroke();
     });
-    
-    // Slanted line logic has been removed to keep only vertical stripes
   });
 }
 
-// Interaction Logic
+// Interaction
 canvas.addEventListener("wheel", e => {
   e.preventDefault();
   if (e.ctrlKey || e.metaKey) {
@@ -132,7 +141,7 @@ function handleHover(e) {
   const y = (e.clientY - offsetY) / scale;
 
   for (const t of tallies) {
-    if (x > t.x - 10 && x < t.x + 110 && y > t.y && y < t.y + 50) {
+    if (x > t.x - 10 && x < t.x + 80 && y > t.y && y < t.y + 50) {
       tooltip.style.left = e.clientX + 15 + "px";
       tooltip.style.top = e.clientY + 15 + "px";
       tooltip.innerHTML = `<strong>${t.date.toDateString()}</strong><br>${t.people.map(p => p.name).join(", ")}`;
