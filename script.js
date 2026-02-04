@@ -1,8 +1,8 @@
 const svg = document.getElementById("wall");
 const tooltip = document.getElementById("tooltip");
 
-// 1. DATE SETTINGS (Grandmother born in 1945 as an example)
-const gMomBirth = new Date("1966-05-12"); 
+// 1. DATE SETTINGS
+const gMomBirth = new Date("1966-08-12"); 
 const dadBirth = new Date(gMomBirth);
 dadBirth.setFullYear(dadBirth.getFullYear() + 18); 
 
@@ -13,10 +13,10 @@ const today = new Date();
 const msInDay = 24 * 60 * 60 * 1000;
 const totalDays = Math.floor((today - gMomBirth) / msInDay);
 
-// 2. GRID & SIZE SETTINGS
-const itemsPerRow = 45; // Fewer items makes them appear larger
-const xSpacing = 50;    // More breathing room for bigger tallies
-const ySpacing = 90;    // Taller rows
+// 2. TIGHTER GRID SETTINGS
+const itemsPerRow = 65; 
+const xSpacing = 28;    // Reduced to pull them closer horizontally
+const ySpacing = 60;    // Reduced to pull them closer vertically
 const tallies = [];
 
 // 3. GENERATION LOOP
@@ -30,16 +30,16 @@ for (let i = 1; i <= totalDays; i++) {
 
     if (currentDay >= dadBirth && currentDay < myBirth) {
         era = "Father";
-        strokes = 2; // (||)
+        strokes = 2;
     } else if (currentDay >= myBirth) {
         era = "Me";
-        strokes = 3; // (|||)
+        strokes = 3;
     }
 
     tallies.push({
         "id": i,
-        "x": 80 + (col * xSpacing),
-        "y": 360 + (row * ySpacing), // Starts after a 4-line gap
+        "x": 60 + (col * xSpacing),
+        "y": 240 + (row * ySpacing), // 4-row gap at top
         "rotation": Math.floor(Math.random() * 11) - 5,
         "strokeCount": strokes,
         "note": `${era}'s Era — Day ${i} (${currentDay.toDateString()})`
@@ -53,12 +53,12 @@ function drawWall(data) {
 
         for (let s = 0; s < t.strokeCount; s++) {
             const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            const xOffset = s * 14; // Wider gap between the lines of a group
+            const xOffset = s * 8; // Tighter offset for strokes
             
-            // Bigger tilde curve path
+            // Standard tilde curve path
             const d = `M${t.x + xOffset},${t.y} 
-                       c6,-12 12,0 0,24 
-                       c-12,24 -6,36 0,24`;
+                       c4,-8 8,0 0,16 
+                       c-8,16 -4,24 0,16`;
 
             path.setAttribute("d", d);
             path.classList.add("tally");
@@ -85,9 +85,8 @@ function drawWall(data) {
 function resizeWall() {
     if (tallies.length === 0) return;
     const lastTally = tallies[tallies.length - 1];
-    
-    const totalHeight = lastTally.y + 150;
-    const totalWidth = 80 + (itemsPerRow * xSpacing) + 120; 
+    const totalHeight = lastTally.y + 100;
+    const totalWidth = 60 + (itemsPerRow * xSpacing) + 100; 
     
     svg.setAttribute("viewBox", `0 0 ${totalWidth} ${totalHeight}`);
     svg.style.height = totalHeight + "px";
