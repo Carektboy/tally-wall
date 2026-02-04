@@ -1,23 +1,8 @@
 {
-  "startDate": "1966-05-12",
-  "people": [
-    {
-      "name": "Grandmother",
-      "from": "1966-05-12",
-      "to": "1984-05-12",
-      "strokes": 1
-    },
-    {
-      "name": "Father",
-      "from": "1984-05-12",
-      "to": "2004-05-12",
-      "strokes": 2
-    },
-    {
-      "name": "Me",
-      "from": "2004-05-12",
-      "to": "2026-01-01",
-      "strokes": 3
-    }
+  "tallies": [
+    { "x": 100, "y": 150, "label": "Event A", "value": 5 },
+    { "x": 300, "y": 250, "label": "Event B", "value": 10 },
+    { "x": 600, "y": 400, "label": "Event C", "value": 3 },
+    { "x": 1000, "y": 500, "label": "Event D", "value": 8 }
   ]
 }
