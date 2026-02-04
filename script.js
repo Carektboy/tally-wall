@@ -15,96 +15,104 @@ const totalDays = Math.floor((today - gMomBirth) / msInDay);
 
 // --- GRID SETTINGS ---
 const itemsPerRow = 60;
-const xSpacing = 32;
-const ySpacing = 70;
-
+const baseXSpacing = 32;
+const baseYSpacing = 70;
 const startX = 60;
 const startY = 40;
 
+// --- ZOOM STATE ---
+let zoom = 1;
+let targetZoom = 1;
+
+// --- DATA ---
 const tallies = [];
 
-// --- DATA GENERATION ---
+// --- CREATE ONCE ---
 for (let i = 0; i < totalDays; i++) {
   const row = Math.floor(i / itemsPerRow);
   const col = i % itemsPerRow;
+
+  const baseX = startX + col * baseXSpacing;
+  const baseY = startY + row * baseYSpacing;
+
   const currentDay = new Date(gMomBirth.getTime() + i * msInDay);
 
   let era = "Grandmother";
   let strokes = 1;
-
   if (currentDay >= dadBirth && currentDay < myBirth) {
-    era = "Father";
-    strokes = 2;
+    era = "Father"; strokes = 2;
   } else if (currentDay >= myBirth) {
-    era = "Me";
-    strokes = 3;
+    era = "Me"; strokes = 3;
   }
 
-  tallies.push({
-    x: startX + col * xSpacing,
-    y: startY + row * ySpacing,
-    rotation: Math.random() * 10 - 5,
-    strokeCount: strokes,
-    note: `${era}: ${currentDay.toDateString()}`
+  const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+  for (let s = 0; s < strokes; s++) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const d = `
+      M ${baseX + s * 8} ${baseY}
+      c 4 -8 8 0 0 16
+      c -8 16 -4 24 0 16
+    `;
+    path.setAttribute("d", d);
+    path.classList.add("tally");
+    group.appendChild(path);
+  }
+
+  group.dataset.baseX = baseX;
+  group.dataset.baseY = baseY;
+  group.dataset.row = row;
+  group.dataset.col = col;
+
+  group.addEventListener("mouseenter", () => {
+    tooltip.textContent = `${era}: ${currentDay.toDateString()}`;
+    tooltip.style.opacity = 1;
   });
+  group.addEventListener("mousemove", e => {
+    tooltip.style.left = e.clientX + 15 + "px";
+    tooltip.style.top = e.clientY + 15 + "px";
+  });
+  group.addEventListener("mouseleave", () => tooltip.style.opacity = 0);
+
+  svg.appendChild(group);
+  tallies.push(group);
 }
 
-// --- DRAW ---
-function drawWall(data) {
-  data.forEach(t => {
-    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+// --- APPLY SPACING ONLY ---
+function applyZoom() {
+  zoom += (targetZoom - zoom) * 0.15;
 
-    for (let s = 0; s < t.strokeCount; s++) {
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      const xOffset = s * 8;
+  tallies.forEach(g => {
+    const col = +g.dataset.col;
+    const row = +g.dataset.row;
 
-      const d = `
-        M ${t.x + xOffset} ${t.y}
-        c 4 -8 8 0 0 16
-        c -8 16 -4 24 0 16
-      `;
+    const dx = col * baseXSpacing * (zoom - 1);
+    const dy = row * baseYSpacing * (zoom - 1);
 
-      path.setAttribute("d", d);
-      path.classList.add("tally");
-      group.appendChild(path);
-    }
-
-    group.setAttribute(
+    g.setAttribute(
       "transform",
-      `rotate(${t.rotation}, ${t.x}, ${t.y})`
+      `translate(${dx}, ${dy})`
     );
-
-    group.addEventListener("mouseenter", () => {
-      tooltip.textContent = t.note;
-      tooltip.style.opacity = 1;
-    });
-
-    group.addEventListener("mousemove", e => {
-      tooltip.style.left = e.clientX + 15 + "px";
-      tooltip.style.top = e.clientY + 15 + "px";
-    });
-
-    group.addEventListener("mouseleave", () => {
-      tooltip.style.opacity = 0;
-    });
-
-    svg.appendChild(group);
   });
+
+  requestAnimationFrame(applyZoom);
 }
 
-// --- RESIZE ---
-function resizeWall() {
-  if (!tallies.length) return;
+// --- WHEEL ZOOM ---
+svg.addEventListener("wheel", e => {
+  e.preventDefault();
+  targetZoom += e.deltaY < 0 ? 0.15 : -0.15;
+  targetZoom = Math.min(Math.max(targetZoom, 1), 3);
+}, { passive: false });
 
-  const last = tallies[tallies.length - 1];
-  const width = startX + itemsPerRow * xSpacing + 80;
-  const height = last.y + ySpacing;
+// --- SVG SIZE ---
+const rows = Math.ceil(totalDays / itemsPerRow);
+const width = startX + itemsPerRow * baseXSpacing + 80;
+const height = startY + rows * baseYSpacing;
 
-  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  svg.style.width = width + "px";
-  svg.style.height = height + "px";
-}
+svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+svg.style.width = width + "px";
+svg.style.height = height + "px";
 
-drawWall(tallies);
-resizeWall();
-window.addEventListener("resize", resizeWall);
+// --- START ---
+applyZoom();
