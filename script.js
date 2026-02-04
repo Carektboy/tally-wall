@@ -1,3 +1,4 @@
+console.log("script loaded");
 const canvas = document.getElementById("wall");
 const ctx = canvas.getContext("2d");
 const tooltip = document.getElementById("tooltip");
@@ -49,13 +50,15 @@ function createStripePattern(colors) {
 }
 
 // ---------- LOAD DATA ----------
-fetch("data.json")
+fetch("./data.json")
   .then(r => r.json())
   .then(data => buildTallies(data.people));
 
 // ---------- BUILD ----------
 function buildTallies(people) {
   tallies = [];
+
+  console.log("people:", people.length);
 
   const startDate = new Date(people[0].dob);
   const today = new Date();
