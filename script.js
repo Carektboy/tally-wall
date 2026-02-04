@@ -35,7 +35,7 @@ function init(people) {
 
     const perRow = 30; 
     const xGap = 50; 
-    const yGap = 120;
+    const yGap = 80;
 
     tallies = [];
 
