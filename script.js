@@ -2,99 +2,118 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const tooltip = document.getElementById("tooltip");
 
-canvas.width = 3000;
-canvas.height = 2000;
+// initial size
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
+// camera settings
 let scale = 1;
 let offsetX = 0;
 let offsetY = 0;
 
-let isPanning = false;
-let startX, startY;
+// panning
+let isDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
 
-let data = [];
+// data
+let tallies = [];
 
 fetch("data.json")
   .then(res => res.json())
   .then(json => {
-    data = json.tallies;
+    tallies = json.tallies;
     draw();
   });
 
+// drawing function
 function draw() {
   ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
-  ctx.clearRect(
-    -offsetX / scale,
-    -offsetY / scale,
-    canvas.width / scale,
-    canvas.height / scale
-  );
+  ctx.clearRect(-offsetX / scale, -offsetY / scale,
+                canvas.width / scale, canvas.height / scale);
 
-  data.forEach(item => {
-    ctx.beginPath();
-    ctx.arc(item.x, item.y, 15, 0, Math.PI * 2);
-    ctx.fillStyle = "#4ea1ff";
-    ctx.fill();
+  // draw marks
+  tallies.forEach(t => {
+    for (let i = 0; i < t.value; i++) {
+      ctx.beginPath();
+      ctx.moveTo(t.x + i * 8, t.y);
+      ctx.lineTo(t.x + i * 8, t.y + 20);
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
   });
 }
 
-/* -------- ZOOM (towards mouse) -------- */
+// mouse wheel -> zoom or scroll
 canvas.addEventListener("wheel", e => {
-  if (!e.ctrlKey) return; // allow normal page scroll
-  e.preventDefault();
-
-  const zoom = e.deltaY < 0 ? 1.1 : 0.9;
   const mouseX = e.offsetX;
   const mouseY = e.offsetY;
 
-  const worldX = (mouseX - offsetX) / scale;
-  const worldY = (mouseY - offsetY) / scale;
+  if (e.ctrlKey) {
+    // prevent default so page does not scroll
+    e.preventDefault();
 
-  scale *= zoom;
+    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+    const newScale = Math.min(Math.max(scale * zoomFactor, 0.5), 5);
 
-  offsetX = mouseX - worldX * scale;
-  offsetY = mouseY - worldY * scale;
+    // world position before zoom
+    const wx = (mouseX - offsetX) / scale;
+    const wy = (mouseY - offsetY) / scale;
 
-  draw();
-}, { passive: false });
+    // update scale
+    scale = newScale;
 
-/* -------- PAN -------- */
+    // keep cursor point stable
+    offsetX = mouseX - wx * scale;
+    offsetY = mouseY - wy * scale;
+
+    draw();
+  }
+});
+
+// dragging -> pan
 canvas.addEventListener("mousedown", e => {
-  isPanning = true;
-  startX = e.clientX - offsetX;
-  startY = e.clientY - offsetY;
+  isDragging = true;
+  dragStartX = e.clientX - offsetX;
+  dragStartY = e.clientY - offsetY;
 });
 
-window.addEventListener("mouseup", () => {
-  isPanning = false;
-});
+window.addEventListener("mouseup", () => isDragging = false);
 
 window.addEventListener("mousemove", e => {
-  if (!isPanning) return;
-  offsetX = e.clientX - startX;
-  offsetY = e.clientY - startY;
-  draw();
-});
+  if (isDragging) {
+    offsetX = e.clientX - dragStartX;
+    offsetY = e.clientY - dragStartY;
+    draw();
+  }
 
-/* -------- HOVER TOOLTIP -------- */
-canvas.addEventListener("mousemove", e => {
-  const rect = canvas.getBoundingClientRect();
-  const mx = (e.clientX - rect.left - offsetX) / scale;
-  const my = (e.clientY - rect.top - offsetY) / scale;
+  // hover detection
+  const worldX = (e.clientX - offsetX) / scale;
+  const worldY = (e.clientY - offsetY) / scale;
 
-  let found = false;
-
-  data.forEach(item => {
-    const dx = mx - item.x;
-    const dy = my - item.y;
-    if (Math.sqrt(dx * dx + dy * dy) < 15) {
-      tooltip.style.display = "block";
-      tooltip.style.left = e.clientX + 10 + "px";
-      tooltip.style.top = e.clientY + 10 + "px";
-      tooltip.innerHTML = `<b>${item.label}</b><br>Value: ${item.value}`;
-      found = true;
+  let found = null;
+  tallies.forEach(t => {
+    // simple bounding box hit-test
+    if (worldX >= t.x - 10 && worldX <= t.x + t.value * 8 + 10 &&
+        worldY >= t.y - 10 && worldY <= t.y + 30) {
+      found = t;
     }
   });
 
-  if (!found) tooltip.style.display = "none";
+  if (found) {
+    tooltip.style.opacity = 1;
+    tooltip.style.left = e.clientX + 12 + "px";
+    tooltip.style.top = e.clientY + 12 + "px";
+    tooltip.innerHTML = `<b>${found.label}</b><br>Count: ${found.value}`;
+  } else {
+    tooltip.style.opacity = 0;
+  }
+});
+
+// resize
+window.addEventListener("resize", () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  draw();
 });
