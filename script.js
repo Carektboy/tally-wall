@@ -13,20 +13,20 @@ const today = new Date();
 const msInDay = 24 * 60 * 60 * 1000;
 const totalDays = Math.floor((today - gMomBirth) / msInDay);
 
-// --- BASE GRID (DO NOT CHANGE LATER) ---
+// --- GRID SETTINGS ---
 const itemsPerRow = 60;
-const baseXSpacing = 32;
-const baseYSpacing = 70;
+const xSpacing = 32;
+const ySpacing = 70;
+
 const startX = 60;
 const startY = 40;
 
-// --- ZOOM STATE ---
-let zoomScale = 1;
-
-// --- DATA ---
 const tallies = [];
 
+// --- DATA GENERATION ---
 for (let i = 0; i < totalDays; i++) {
+  const row = Math.floor(i / itemsPerRow);
+  const col = i % itemsPerRow;
   const currentDay = new Date(gMomBirth.getTime() + i * msInDay);
 
   let era = "Grandmother";
@@ -41,7 +41,8 @@ for (let i = 0; i < totalDays; i++) {
   }
 
   tallies.push({
-    index: i,
+    x: startX + col * xSpacing,
+    y: startY + row * ySpacing,
     rotation: Math.random() * 10 - 5,
     strokeCount: strokes,
     note: `${era}: ${currentDay.toDateString()}`
@@ -49,27 +50,16 @@ for (let i = 0; i < totalDays; i++) {
 }
 
 // --- DRAW ---
-function drawWall() {
-  svg.innerHTML = "";
-
-  const xSpacing = baseXSpacing * zoomScale;
-  const ySpacing = baseYSpacing * zoomScale;
-
-  tallies.forEach(t => {
-    const row = Math.floor(t.index / itemsPerRow);
-    const col = t.index % itemsPerRow;
-
-    const x = startX + col * xSpacing;
-    const y = startY + row * ySpacing;
-
+function drawWall(data) {
+  data.forEach(t => {
     const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
 
     for (let s = 0; s < t.strokeCount; s++) {
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      const xOffset = s * 8 * zoomScale;
+      const xOffset = s * 8;
 
       const d = `
-        M ${x + xOffset} ${y}
+        M ${t.x + xOffset} ${t.y}
         c 4 -8 8 0 0 16
         c -8 16 -4 24 0 16
       `;
@@ -81,7 +71,7 @@ function drawWall() {
 
     group.setAttribute(
       "transform",
-      `rotate(${t.rotation}, ${x}, ${y})`
+      `rotate(${t.rotation}, ${t.x}, ${t.y})`
     );
 
     group.addEventListener("mouseenter", () => {
@@ -100,32 +90,21 @@ function drawWall() {
 
     svg.appendChild(group);
   });
-
-  resizeWall(xSpacing, ySpacing);
 }
 
 // --- RESIZE ---
-function resizeWall(xSpacing, ySpacing) {
-  const rows = Math.ceil(tallies.length / itemsPerRow);
+function resizeWall() {
+  if (!tallies.length) return;
+
+  const last = tallies[tallies.length - 1];
   const width = startX + itemsPerRow * xSpacing + 80;
-  const height = startY + rows * ySpacing;
+  const height = last.y + ySpacing;
 
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.style.width = width + "px";
   svg.style.height = height + "px";
 }
 
-// --- ZOOM HANDLER ---
-svg.addEventListener("wheel", e => {
-  e.preventDefault();
-
-  const zoomSpeed = 0.1;
-  zoomScale += e.deltaY < 0 ? zoomSpeed : -zoomSpeed;
-
-  zoomScale = Math.min(Math.max(zoomScale, 0.6), 2.5);
-
-  drawWall();
-}, { passive: false });
-
-// --- INIT ---
-drawWall();
+drawWall(tallies);
+resizeWall();
+window.addEventListener("resize", resizeWall);
