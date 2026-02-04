@@ -4,7 +4,7 @@ html, body {
     width: 100vw;
     height: 100vh;
     overflow: hidden;
-    background: #fdfaf6; /* Clean off-white */
+    background: #fdfaf6; 
     font-family: system-ui, -apple-system, sans-serif;
 }
 
@@ -17,21 +17,17 @@ html, body {
 canvas {
     display: block;
     touch-action: none;
-    contain: strict;
 }
 
 #tooltip {
     position: fixed;
     pointer-events: none;
-    background: #ffffff;
-    color: #333;
+    background: #fff;
     padding: 10px 14px;
     border-radius: 6px;
     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     font-size: 13px;
-    font-weight: 500;
     opacity: 0;
-    transition: opacity 0.1s;
     z-index: 1000;
     border: 1px solid #ddd;
     white-space: nowrap;
