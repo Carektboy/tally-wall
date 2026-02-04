@@ -2,22 +2,20 @@ const svg = document.getElementById("wall");
 const tooltip = document.getElementById("tooltip");
 
 // 1. DATE SETTINGS
-const gMomBirth = new Date("1945-05-12"); // Update to Grandma's birthday
+const gMomBirth = new Date("1945-05-12"); 
 const dadBirth = new Date(gMomBirth);
 dadBirth.setFullYear(dadBirth.getFullYear() + 18); 
-
 const myBirth = new Date(dadBirth);
 myBirth.setFullYear(myBirth.getFullYear() + 20); 
 
-// Gets current date automatically so it grows every day
 const today = new Date();
 const msInDay = 24 * 60 * 60 * 1000;
 const totalDays = Math.floor((today - gMomBirth) / msInDay);
 
 // 2. GRID SETTINGS
-const itemsPerRow = 60;
-const xSpacing = 32; 
-const ySpacing = 75; 
+const itemsPerRow = 50; // Fewer items per row makes them feel "bigger"
+const xSpacing = 45;    // Wider horizontal space for bigger symbols
+const ySpacing = 90;    // Taller rows
 const tallies = [];
 
 // 3. GENERATION LOOP
@@ -28,25 +26,21 @@ for (let i = 1; i <= totalDays; i++) {
     
     let era = "Grandmother";
     let strokes = 1;
-    let color = "#3498db"; // Blue for Grandmother
 
     if (currentDay >= dadBirth && currentDay < myBirth) {
         era = "Father";
         strokes = 2;
-        color = "#2ecc71"; // Green for Father
     } else if (currentDay >= myBirth) {
         era = "Me";
         strokes = 3;
-        color = "#e67e22"; // Orange for Me
     }
 
     tallies.push({
         "id": i,
-        "x": 100 + (col * xSpacing), // 100px left margin
-        "y": 40 + (row * ySpacing),  // 40px top margin
+        "x": 80 + (col * xSpacing),
+        "y": 280 + (row * ySpacing), // ~4 lines of gap at the top
         "rotation": Math.floor(Math.random() * 11) - 5,
         "strokeCount": strokes,
-        "color": color,
         "note": `${era}'s Era — Day ${i} (${currentDay.toDateString()})`
     });
 }
@@ -57,17 +51,19 @@ function drawWall(data) {
         const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
         for (let s = 0; s < t.strokeCount; s++) {
             const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            const xOffset = s * 8; 
-            // Tilde path data
-            const d = `M${t.x + xOffset},${t.y} c4,-6 8,0 0,12 c-8,12 -4,18 0,12`; 
+            const xOffset = s * 12; // Wider offset for bigger strokes
+            
+            // Scaled-up tilde path data
+            const d = `M${t.x + xOffset},${t.y} 
+                       c6,-10 12,0 0,20 
+                       c-12,20 -6,30 0,20`; 
+
             path.setAttribute("d", d);
-            path.style.stroke = t.color;
             path.classList.add("tally");
             group.appendChild(path);
         }
         group.setAttribute("transform", `rotate(${t.rotation}, ${t.x}, ${t.y})`);
         
-        // Tooltip interaction
         group.addEventListener("mouseenter", () => {
             tooltip.textContent = t.note;
             tooltip.style.opacity = 1;
@@ -81,12 +77,12 @@ function drawWall(data) {
     });
 }
 
-// 5. RESPONSIVE SIZE
+// 5. AUTO-SIZE
 function resizeWall() {
     if (tallies.length === 0) return;
     const lastTally = tallies[tallies.length - 1];
-    const totalHeight = lastTally.y + 80; 
-    const totalWidth = 100 + (itemsPerRow * xSpacing) + 180; 
+    const totalHeight = lastTally.y + 120; 
+    const totalWidth = 80 + (itemsPerRow * xSpacing) + 120; 
     svg.setAttribute("viewBox", `0 0 ${totalWidth} ${totalHeight}`);
     svg.style.height = totalHeight + "px";
     svg.style.width = totalWidth + "px";
