@@ -80,7 +80,7 @@ function draw() {
             ctx.strokeStyle = p.colors[0]; 
             
             // REDUCE GAP HERE: Change '4' to a smaller number for more overlap
-            const xPos = t.x + (i * 8); 
+            const xPos = t.x + (i * 5); 
             
             const yStart = t.y;
             const yEnd = t.y + 40;
