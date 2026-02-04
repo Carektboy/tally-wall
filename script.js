@@ -1,166 +1,145 @@
-const canvas = document.getElementById("tallyCanvas");
+const canvas = document.getElementById("wall");
 const ctx = canvas.getContext("2d");
 const tooltip = document.getElementById("tooltip");
 
-// ===== VIEW STATE =====
 let scale = 1;
-let offsetX = 80;
-let offsetY = 80;
-let isDragging = false;
-let startX = 0;
-let startY = 0;
+let offsetX = 0;
+let offsetY = 0;
 
-// ===== LAYOUT SETTINGS =====
-const GAP_X = 40;        // horizontal gap between tallies
-const GAP_Y = 110;       // vertical gap between rows
-const LINE_HEIGHT = 55;
-const LINE_GAP = 8;      // gap between strokes inside one tally
-const MAX_ZOOM = 10;
-const MIN_ZOOM = 0.4;
-
-// ===== DATA =====
-let people = [];
 let tallies = [];
+let contentWidth = 0;
+let contentHeight = 0;
 
-// ===== RESIZE =====
+// ====== CONFIG ======
+const GAP_X = 40;   // horizontal gap between days
+const GAP_Y = 90;   // vertical gap between rows
+const PER_ROW = 30; // days per row
+const STROKE_HEIGHT = 40;
+// ====================
+
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   draw();
 }
+
 window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
-// ===== LOAD DATA =====
+// ---------- LOAD DATA ----------
 fetch("data.json")
-  .then(res => res.json())
-  .then(data => {
-    people = data.people.map(p => ({
-      name: p.name,
-      dob: new Date(p.dob),
-      colors: p.colors
-    }));
-    generateTallies();
-    draw();
-  });
+  .then(r => r.json())
+  .then(data => buildTallies(data.people));
 
-// ===== GENERATE TALLIES (1 per year from first DOB) =====
-function generateTallies() {
-  tallies = [];
-
-  const startDate = people[0].dob;
+// ---------- BUILD TALLIES ----------
+function buildTallies(people) {
+  const startDate = new Date(people[0].dob);
   const today = new Date();
-  const years = today.getFullYear() - startDate.getFullYear();
+  const msDay = 86400000;
 
-  for (let i = 0; i <= years; i++) {
-    const date = new Date(startDate);
-    date.setFullYear(startDate.getFullYear() + i);
+  const totalDays = Math.floor((today - startDate) / msDay);
 
-    const activePeople = people.filter(p => date >= p.dob);
+  for (let i = 0; i < totalDays; i++) {
+    const date = new Date(startDate.getTime() + i * msDay);
 
-    const row = Math.floor(i / 25);
-    const col = i % 25;
+    let active = people.filter(p => new Date(p.dob) <= date);
+    let colors = active[active.length - 1].colors;
+
+    const row = Math.floor(i / PER_ROW);
+    const col = i % PER_ROW;
 
     tallies.push({
-      x: col * GAP_X,
-      y: row * GAP_Y,
-      date,
-      people: activePeople
+      x: 100 + col * GAP_X,
+      y: 100 + row * GAP_Y,
+      colors,
+      label: `${active.map(p => p.name).join(", ")} — ${date.toDateString()}`
     });
   }
+
+  const last = tallies[tallies.length - 1];
+  contentWidth = last.x + 300;
+  contentHeight = last.y + 300;
+
+  draw();
 }
 
-// ===== DRAW =====
+// ---------- DRAW ----------
 function draw() {
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
-  ctx.lineCap = "round";
-  ctx.lineWidth = 3;
+  ctx.fillStyle = "#f4efe8";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  ctx.setTransform(scale,0,0,scale,offsetX,offsetY);
 
   tallies.forEach(t => {
-    t.people.forEach((p, i) => {
-      ctx.strokeStyle = p.colors[i % p.colors.length];
+    t.colors.forEach((c, i) => {
+      ctx.strokeStyle = c;
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+
       ctx.beginPath();
-      ctx.moveTo(t.x + i * LINE_GAP, t.y);
-      ctx.lineTo(t.x + i * LINE_GAP, t.y + LINE_HEIGHT);
+      ctx.moveTo(t.x + i * 10, t.y);
+      ctx.lineTo(t.x + i * 10, t.y - STROKE_HEIGHT);
       ctx.stroke();
     });
   });
 }
 
-// ===== ZOOM & PAN =====
+// ---------- CAMERA CLAMP ----------
+function clampCamera() {
+  const minX = canvas.width - contentWidth * scale;
+  const minY = canvas.height - contentHeight * scale;
+
+  offsetX = Math.min(0, Math.max(offsetX, minX));
+  offsetY = Math.min(0, Math.max(offsetY, minY));
+}
+
+// ---------- ZOOM ----------
 canvas.addEventListener("wheel", e => {
-  if (e.ctrlKey) {
-    e.preventDefault();
+  e.preventDefault();
 
-    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-    const mouseX = (e.clientX - offsetX) / scale;
-    const mouseY = (e.clientY - offsetY) / scale;
-
-    scale *= zoomFactor;
-    scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale));
-
-    offsetX = e.clientX - mouseX * scale;
-    offsetY = e.clientY - mouseY * scale;
-  } else {
-    offsetX -= e.deltaX;
+  if (!e.ctrlKey) {
     offsetY -= e.deltaY;
+    clampCamera();
+    draw();
+    return;
   }
 
+  const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+  const mx = e.clientX;
+  const my = e.clientY;
+
+  const wx = (mx - offsetX) / scale;
+  const wy = (my - offsetY) / scale;
+
+  scale *= zoomFactor;
+  scale = Math.min(Math.max(scale, 0.3), 12);
+
+  offsetX = mx - wx * scale;
+  offsetY = my - wy * scale;
+
+  clampCamera();
   draw();
 }, { passive: false });
 
-// ===== DRAG =====
-canvas.addEventListener("mousedown", e => {
-  isDragging = true;
-  startX = e.clientX - offsetX;
-  startY = e.clientY - offsetY;
-});
+// ---------- TOOLTIP ----------
+canvas.addEventListener("mousemove", e => {
+  const mx = (e.clientX - offsetX) / scale;
+  const my = (e.clientY - offsetY) / scale;
 
-window.addEventListener("mousemove", e => {
-  if (isDragging) {
-    offsetX = e.clientX - startX;
-    offsetY = e.clientY - startY;
-    draw();
-  } else {
-    handleHover(e);
-  }
-});
-
-window.addEventListener("mouseup", () => {
-  isDragging = false;
-});
-
-// ===== HOVER TOOLTIP =====
-function handleHover(e) {
-  const wx = (e.clientX - offsetX) / scale;
-  const wy = (e.clientY - offsetY) / scale;
-
-  let hit = null;
-
-  for (const t of tallies) {
-    const width = t.people.length * LINE_GAP;
-    if (
-      wx >= t.x - 5 &&
-      wx <= t.x + width + 5 &&
-      wy >= t.y &&
-      wy <= t.y + LINE_HEIGHT
-    ) {
-      hit = t;
-      break;
-    }
-  }
+  const hit = tallies.find(t =>
+    Math.abs(mx - t.x) < 15 &&
+    Math.abs(my - t.y) < STROKE_HEIGHT
+  );
 
   if (hit) {
+    tooltip.textContent = hit.label;
+    tooltip.style.left = e.clientX + 15 + "px";
+    tooltip.style.top = e.clientY + 15 + "px";
     tooltip.style.opacity = 1;
-    tooltip.style.left = e.clientX + 12 + "px";
-    tooltip.style.top = e.clientY + 12 + "px";
-    tooltip.textContent =
-      hit.date.getFullYear() + " — " +
-      hit.people.map(p => p.name).join(", ");
   } else {
     tooltip.style.opacity = 0;
   }
-}
+});
