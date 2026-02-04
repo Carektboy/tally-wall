@@ -1,13 +1,18 @@
-body {
-  margin: 0;
-  background: #0e0e0e;
-  color: white;
-  font-family: Arial, sans-serif;
+* {
+  box-sizing: border-box;
 }
 
+body {
+  margin: 0;
+  background: #111;
+  color: #fff;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* SCROLL FIX */
 #scroll-container {
-  height: 100vh;          /* viewport height */
-  overflow-y: auto;       /* ENABLE SCROLL */
+  height: 100vh;
+  overflow-y: auto;
   overflow-x: hidden;
 }
 
