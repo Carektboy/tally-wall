@@ -1,14 +1,14 @@
 html, body {
   margin: 0;
   padding: 0;
-  overflow: hidden; /* Important to let canvas handle all movements */
   background: #f4efe8;
+  overflow: hidden;
   font-family: sans-serif;
 }
 
 canvas {
   display: block;
-  background: #ffffff;
+  background: #f4efe8;
   cursor: grab;
 }
 
@@ -19,11 +19,11 @@ canvas:active {
 #tooltip {
   position: fixed;
   background: rgba(0,0,0,0.85);
-  color: #fff;
+  color: white;
   padding: 6px 10px;
   font-size: 12px;
   border-radius: 4px;
   pointer-events: none;
   opacity: 0;
-  z-index: 100;
+  z-index: 10;
 }
