@@ -1,5 +1,5 @@
 const canvas = document.getElementById("tallyCanvas");
-const ctx = canvas.getContext("2d");
+const ctx = canvas.getContext("2d", { alpha: false });
 const tooltip = document.getElementById("tooltip");
 
 const data = {
@@ -14,33 +14,40 @@ const data = {
     ]
 };
 
+// CONFIGURATION
 let scale = 0.8;
-let offsetX = 50;
-let offsetY = 50;
+let offsetX = 80, offsetY = 80;
 let tallies = [];
 const cache = new Map();
+const dpr = window.devicePixelRatio || 1; // Critical for High Quality
 
-// 1. THIN TALLY DESIGN
 function preRenderMarks() {
     data.people.forEach(p => {
         const off = document.createElement('canvas');
-        off.width = 20; off.height = 70;
+        // Pre-render at high density
+        off.width = 30 * dpr; 
+        off.height = 80 * dpr;
         const oCtx = off.getContext('2d');
+        oCtx.scale(dpr, dpr); 
+
         oCtx.strokeStyle = p.color;
-        oCtx.lineWidth = 2.2; // Thinner for a professional look
+        oCtx.lineWidth = 2.2; // Thin, professional line
         oCtx.lineCap = "round";
         oCtx.beginPath();
-        oCtx.moveTo(5, 5);
-        // Subtle curve, less "jelly-bean"
-        oCtx.bezierCurveTo(7, 25, 3, 45, 5, 65); 
+        oCtx.moveTo(10, 5);
+        oCtx.bezierCurveTo(13, 25, 7, 45, 10, 75); // Subtle hand-inked curve
         oCtx.stroke();
         cache.set(p.name, off);
     });
 }
 
 function init() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    // Sharpness setup
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width = window.innerWidth + "px";
+    canvas.style.height = window.innerHeight + "px";
+    
     preRenderMarks();
 
     const people = [...data.people].sort((a, b) => new Date(a.dob) - new Date(b.dob));
@@ -48,7 +55,7 @@ function init() {
     const today = new Date();
     const totalDays = Math.floor((today - startDate) / 86400000);
 
-    const wrapWidth = window.innerWidth - 100;
+    const wrapWidth = window.innerWidth - 150;
     let curX = 0, curY = 0;
 
     tallies = [];
@@ -56,7 +63,11 @@ function init() {
         const date = new Date(startDate.getTime() + i * 86400000);
         const alive = people.filter(p => new Date(p.dob) <= date);
 
-        if (curX > wrapWidth) { curX = 0; curY += 90; }
+        // Grid wrap
+        if (curX > wrapWidth) { 
+            curX = 0; 
+            curY += 110; 
+        }
 
         tallies.push({ 
             x: curX, 
@@ -65,63 +76,66 @@ function init() {
             people: alive.map(p => p.name) 
         });
 
-        // 2. OVERLAP DAY GROUPS
-        // Lower number = tighter spacing between separate days
+        // SPACE BETWEEN DAYS (Overlap groups)
         curX += 24; 
     }
     draw();
 }
 
 function draw() {
+    // Reset transform to DPR for crystal clear drawing
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = "#fdfaf6";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
     
     ctx.save();
     ctx.translate(offsetX, offsetY);
     ctx.scale(scale, scale);
 
+    // Culling: Only draw rows visible on screen
     const vTop = -offsetY / scale;
-    const vBottom = (canvas.height - offsetY) / scale;
+    const vBottom = (window.innerHeight - offsetY) / scale;
 
     tallies.forEach(t => {
-        // Performance: Don't draw off-screen rows
         if (t.y < vTop - 150 || t.y > vBottom + 150) return;
         
         t.people.forEach((name, j) => {
             const img = cache.get(name);
-            // 3. OVERLAP INDIVIDUAL STRIPES
-            // (j * 4) makes family members overlap nicely within the day
-            if (img) ctx.drawImage(img, t.x + (j * 4), t.y);
+            // Overlap within day (j * 4)
+            if (img) ctx.drawImage(img, t.x + (j * 4), t.y, 30, 80);
         });
     });
     ctx.restore();
 }
 
-// 4. FIXED ZOOM-TO-CURSOR
+// Fixed High-Precision Interaction
 window.addEventListener("wheel", e => {
     e.preventDefault();
     const mouseX = (e.clientX - offsetX) / scale;
     const mouseY = (e.clientY - offsetY) / scale;
 
     if (e.ctrlKey || e.metaKey) {
-        const factor = Math.pow(1.1, -Math.sign(e.deltaY));
-        const newScale = Math.min(Math.max(scale * factor, 0.05), 4);
+        // Smooth Zoom
+        const zoomFactor = Math.pow(1.1, -Math.sign(e.deltaY));
+        const newScale = Math.min(Math.max(scale * zoomFactor, 0.05), 4);
+        
         offsetX = e.clientX - mouseX * newScale;
         offsetY = e.clientY - mouseY * newScale;
         scale = newScale;
     } else {
+        // Panning
         offsetX -= e.deltaX;
         offsetY -= e.deltaY;
     }
-    draw();
+    requestAnimationFrame(draw);
 }, { passive: false });
 
-// Tooltip
 window.addEventListener("mousemove", e => {
     const x = (e.clientX - offsetX) / scale;
     const y = (e.clientY - offsetY) / scale;
-    // Find tally under cursor
-    const t = tallies.find(t => x > t.x && x < t.x + 35 && y > t.y && y < t.y + 70);
+    
+    // Find the date group under mouse
+    const t = tallies.find(t => x > t.x && x < t.x + 35 && y > t.y && y < t.y + 80);
     
     if (t) {
         tooltip.style.opacity = 1;
@@ -133,6 +147,10 @@ window.addEventListener("mousemove", e => {
     }
 });
 
-window.addEventListener("resize", () => init());
+// Auto-Quality adjustment on window resize
+window.addEventListener("resize", () => {
+    init();
+});
 
+// Initial Load
 init();
