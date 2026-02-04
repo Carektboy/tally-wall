@@ -7,24 +7,26 @@ canvas.height = window.innerHeight;
 
 // -------- ERA COLORS --------
 const ERA_COLORS = {
-  grandma: ["#2e7d32"],                 // green
-  father: ["#2e7d32", "#1565c0"],        // green + blue
-  me: ["#2e7d32", "#1565c0", "#ef6c00"]  // green + blue + orange
+  grandma: ["#2e7d32"],
+  father: ["#2e7d32", "#1565c0"],
+  me: ["#2e7d32", "#1565c0", "#ef6c00"]
 };
 
 // -------- CAMERA --------
 let scale = 1;
 let offsetX = 0;
 let offsetY = 0;
-let isPanning = false;
-let startPan = { x: 0, y: 0 };
+
+let isDragging = false;
+let dragStart = { x: 0, y: 0 };
+
+// -------- DATA --------
+let tallies = [];
 
 // -------- LOAD DATA --------
 fetch("data.json")
-  .then(r => r.json())
+  .then(res => res.json())
   .then(data => init(data));
-
-let tallies = [];
 
 function init(data) {
   const grandmaBirth = new Date(data.grandmomBirth);
@@ -39,8 +41,10 @@ function init(data) {
   const totalDays = Math.floor((today - grandmaBirth) / msDay);
 
   const perRow = 50;
-  const xGap = 24;
-  const yGap = 50;
+  const xGap = 26;
+  const yGap = 52;
+
+  tallies = [];
 
   for (let i = 0; i <= totalDays; i++) {
     const row = Math.floor(i / perRow);
@@ -67,14 +71,22 @@ function init(data) {
     });
   }
 
-  centerView();
+  // Initial camera position
+  offsetX = canvas.width / 2;
+  offsetY = 80;
+
   draw();
 }
 
 // -------- DRAW --------
 function draw() {
   ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
-  ctx.clearRect(-offsetX / scale, -offsetY / scale, canvas.width / scale, canvas.height / scale);
+  ctx.clearRect(
+    -offsetX / scale,
+    -offsetY / scale,
+    canvas.width / scale,
+    canvas.height / scale
+  );
 
   ctx.lineWidth = 3;
   ctx.lineCap = "round";
@@ -91,47 +103,55 @@ function draw() {
   });
 }
 
-// -------- CENTER VIEW --------
-function centerView() {
-  offsetX = canvas.width / 2;
-  offsetY = 80;
-}
-
-// -------- ZOOM (CENTERED ON MOUSE) --------
+// -------- ZOOM + SCROLL --------
 canvas.addEventListener("wheel", e => {
-  e.preventDefault();
-  const zoom = e.deltaY < 0 ? 1.15 : 0.85;
+  if (e.ctrlKey) {
+    // ---- ZOOM ----
+    e.preventDefault();
 
-  const mx = e.clientX;
-  const my = e.clientY;
+    const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
 
-  offsetX = mx - (mx - offsetX) * zoom;
-  offsetY = my - (my - offsetY) * zoom;
+    const worldX = (e.clientX - offsetX) / scale;
+    const worldY = (e.clientY - offsetY) / scale;
 
-  scale *= zoom;
-  scale = Math.min(Math.max(scale, 0.2), 6);
+    scale *= zoomFactor;
+    scale = Math.min(Math.max(scale, 0.2), 12);
 
-  draw();
+    offsetX = e.clientX - worldX * scale;
+    offsetY = e.clientY - worldY * scale;
+
+    draw();
+  } else {
+    // ---- SCROLL / PAN ----
+    offsetX -= e.deltaX;
+    offsetY -= e.deltaY;
+
+    clampCamera();
+    draw();
+  }
 }, { passive: false });
 
-// -------- PAN --------
+// -------- DRAG PAN (OPTIONAL) --------
 canvas.addEventListener("mousedown", e => {
-  isPanning = true;
-  startPan.x = e.clientX - offsetX;
-  startPan.y = e.clientY - offsetY;
+  isDragging = true;
+  dragStart.x = e.clientX - offsetX;
+  dragStart.y = e.clientY - offsetY;
 });
 
 window.addEventListener("mousemove", e => {
-  if (isPanning) {
-    offsetX = e.clientX - startPan.x;
-    offsetY = e.clientY - startPan.y;
+  if (isDragging) {
+    offsetX = e.clientX - dragStart.x;
+    offsetY = e.clientY - dragStart.y;
+    clampCamera();
     draw();
   } else {
     handleHover(e);
   }
 });
 
-window.addEventListener("mouseup", () => isPanning = false);
+window.addEventListener("mouseup", () => {
+  isDragging = false;
+});
 
 // -------- HOVER --------
 function handleHover(e) {
@@ -140,8 +160,10 @@ function handleHover(e) {
 
   for (const t of tallies) {
     if (
-      x > t.x - 5 && x < t.x + 20 &&
-      y > t.y && y < t.y + 30
+      x > t.x - 6 &&
+      x < t.x + 20 &&
+      y > t.y &&
+      y < t.y + 30
     ) {
       tooltip.style.left = e.clientX + 12 + "px";
       tooltip.style.top = e.clientY + 12 + "px";
@@ -151,6 +173,13 @@ function handleHover(e) {
     }
   }
   tooltip.style.opacity = 0;
+}
+
+// -------- CAMERA LIMITS --------
+function clampCamera() {
+  const limit = 8000;
+  offsetX = Math.max(-limit, Math.min(offsetX, limit));
+  offsetY = Math.max(-limit, Math.min(offsetY, limit));
 }
 
 // -------- RESIZE --------
