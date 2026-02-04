@@ -1,11 +1,11 @@
 {
   "people": [
-    { "name": "Grandmother", "date": "1938-02-01", "color": "#2e7d32" },
-    { "name": "Father",      "date": "1969-05-25", "color": "#1565c0" },
-    { "name": "Mother",      "date": "1980-01-29", "color": "#6a1b9a" },
-    { "name": "Aunt",        "date": "1985-02-07", "color": "#00897b" },
-    { "name": "Samip",       "date": "2004-08-07", "color": "#ef6c00" },
-    { "name": "Kabir",       "date": "2005-04-05", "color": "#c62828" },
-    { "name": "Sangram",     "date": "2008-05-07", "color": "#283593" }
+    { "name": "Grandmother", "dob": "1938-02-01", "colors": ["#3cff3c"] },
+    { "name": "Father", "dob": "1969-05-25", "colors": ["#3cff3c", "#3ca0ff"] },
+    { "name": "Mother", "dob": "1980-01-29", "colors": ["#3cff3c", "#3ca0ff"] },
+    { "name": "Aunt", "dob": "1985-02-07", "colors": ["#3cff3c", "#3ca0ff"] },
+    { "name": "Samip", "dob": "2004-08-07", "colors": ["#3cff3c", "#3ca0ff", "#ff9f1c"] },
+    { "name": "Kabir", "dob": "2005-04-05", "colors": ["#3cff3c", "#3ca0ff", "#ff9f1c"] },
+    { "name": "Sangram", "dob": "2008-05-07", "colors": ["#3cff3c", "#3ca0ff", "#ff9f1c"] }
   ]
 }
