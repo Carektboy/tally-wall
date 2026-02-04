@@ -1,7 +1,7 @@
-const svg = document.getElementById("wall");
+const canvas = document.getElementById("wall");
+const ctx = canvas.getContext("2d");
 const tooltip = document.getElementById("tooltip");
 
-// 1. DATE SETTINGS
 const gMomBirth = new Date("1945-05-12"); 
 const dadBirth = new Date(gMomBirth);
 dadBirth.setFullYear(dadBirth.getFullYear() + 18); 
@@ -12,13 +12,12 @@ const today = new Date();
 const msInDay = 24 * 60 * 60 * 1000;
 const totalDays = Math.floor((today - gMomBirth) / msInDay);
 
-// 2. MOBILE-FIRST GRID SETTINGS
-const itemsPerRow = 15; // Small number = Big tallies
-const xSpacing = 25;    // Horizontal gap
-const ySpacing = 80;    // Vertical gap
+const itemsPerRow = 10; // Big for mobile
+const xSpacing = 35;    
+const ySpacing = 85;    
 const tallies = [];
 
-// 3. GENERATION LOOP
+// 1. GENERATE DATA
 for (let i = 1; i <= totalDays; i++) {
     const row = Math.floor((i - 1) / itemsPerRow);
     const col = (i - 1) % itemsPerRow;
@@ -26,72 +25,72 @@ for (let i = 1; i <= totalDays; i++) {
     
     let era = "Grandmother";
     let strokes = 1;
-
-    if (currentDay >= dadBirth && currentDay < myBirth) {
-        era = "Father";
-        strokes = 2;
-    } else if (currentDay >= myBirth) {
-        era = "Me";
-        strokes = 3;
-    }
+    if (currentDay >= dadBirth && currentDay < myBirth) { era = "Father"; strokes = 2; }
+    else if (currentDay >= myBirth) { era = "Me"; strokes = 3; }
 
     tallies.push({
-        "id": i,
-        "x": 30 + (col * xSpacing), // Start close to the left edge
-        "y": 120 + (row * ySpacing), // Tightened top gap for mobile
-        "rotation": Math.floor(Math.random() * 15) - 7, // More "hand-drawn" feel
-        "strokeCount": strokes,
-        "note": `${era}: ${currentDay.toDateString()}`
+        x: 40 + (col * xSpacing),
+        y: 120 + (row * ySpacing), // 4-line gap
+        rotation: (Math.random() * 20 - 10) * Math.PI / 180,
+        strokes: strokes,
+        note: `${era}: ${currentDay.toDateString()}`
     });
 }
 
-// 4. DRAW FUNCTION
-function drawWall(data) {
-    data.forEach(t => {
-        const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
-        for (let s = 0; s < t.strokeCount; s++) {
-            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            const xOffset = s * 7; 
-            
-            // Scaled tilde for mobile
-            const d = `M${t.x + xOffset},${t.y} 
-                       c5,-10 10,0 0,20 
-                       c-10,20 -5,30 0,20`;
-
-            path.setAttribute("d", d);
-            path.classList.add("tally");
-            group.appendChild(path);
-        }
-
-        group.setAttribute("transform", `rotate(${t.rotation}, ${t.x}, ${t.y})`);
-
-        // Mobile touch interaction
-        group.addEventListener("touchstart", (e) => {
-            tooltip.textContent = t.note;
-            tooltip.style.opacity = 1;
-            tooltip.style.left = "50%";
-            tooltip.style.top = "10%";
-            tooltip.style.transform = "translateX(-50%)";
-        });
-
-        svg.appendChild(group);
-    });
-}
-
-// 5. AUTO-SIZE
-function resizeWall() {
-    if (tallies.length === 0) return;
+// 2. DRAW FUNCTION (Lightning Fast)
+function draw() {
     const lastTally = tallies[tallies.length - 1];
-    const totalHeight = lastTally.y + 100;
-    // Calculate width based on items per row
-    const totalWidth = 30 + (itemsPerRow * xSpacing) + 50; 
-    
-    svg.setAttribute("viewBox", `0 0 ${totalWidth} ${totalHeight}`);
-    svg.style.width = "100%"; // Forces it to fit phone screen
-    svg.style.height = "auto";
+    canvas.width = 40 + (itemsPerRow * xSpacing) + 30;
+    canvas.height = lastTally.y + 100;
+
+    ctx.fillStyle = "#f4efe8";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = "rgba(0,0,0,0.85)";
+    ctx.lineWidth = 4.5; // Thicker for visibility
+    ctx.lineCap = "round";
+
+    tallies.forEach(t => {
+        ctx.save();
+        ctx.translate(t.x, t.y);
+        ctx.rotate(t.rotation);
+        
+        for (let s = 0; s < t.strokes; s++) {
+            const xOff = s * 10;
+            ctx.beginPath();
+            // Tilde path in Canvas
+            ctx.moveTo(xOff, 0);
+            ctx.bezierCurveTo(xOff + 5, -10, xOff + 10, 0, xOff, 20);
+            ctx.bezierCurveTo(xOff - 10, 40, xOff - 5, 50, xOff, 40);
+            ctx.stroke();
+        }
+        ctx.restore();
+    });
 }
 
-drawWall(tallies);
-resizeWall();
-window.addEventListener("resize", resizeWall);
+// 3. TAP INTERACTION
+canvas.addEventListener("click", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const clickX = (e.clientX - rect.left) * scaleX;
+    const clickY = (e.clientY - rect.top) * scaleY;
+
+    // Find the closest tally
+    let closest = tallies[0];
+    let minDist = Infinity;
+    
+    tallies.forEach(t => {
+        const d = Math.sqrt((clickX - t.x)**2 + (clickY - t.y)**2);
+        if (d < minDist) {
+            minDist = d;
+            closest = t;
+        }
+    });
+
+    if (minDist < 50) {
+        tooltip.textContent = closest.note;
+    }
+});
+
+draw();
