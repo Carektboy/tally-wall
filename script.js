@@ -2,110 +2,165 @@ const canvas = document.getElementById("tallyCanvas");
 const ctx = canvas.getContext("2d");
 const tooltip = document.getElementById("tooltip");
 
+// ===== VIEW STATE =====
 let scale = 1;
 let offsetX = 80;
 let offsetY = 80;
 let isDragging = false;
-let startX, startY;
+let startX = 0;
+let startY = 0;
 
-const GAP_X = 26;        // space between tallies
-const GAP_Y = 90;        // space between people
-const LINE_HEIGHT = 50;
-const MAX_ZOOM = 6;
-const MIN_ZOOM = 0.6;
+// ===== LAYOUT SETTINGS =====
+const GAP_X = 40;        // horizontal gap between tallies
+const GAP_Y = 110;       // vertical gap between rows
+const LINE_HEIGHT = 55;
+const LINE_GAP = 8;      // gap between strokes inside one tally
+const MAX_ZOOM = 10;
+const MIN_ZOOM = 0.4;
 
-resize();
-window.addEventListener("resize", resize);
+// ===== DATA =====
+let people = [];
+let tallies = [];
 
-function resize() {
+// ===== RESIZE =====
+function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   draw();
 }
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
 
+// ===== LOAD DATA =====
 fetch("data.json")
-  .then(r => r.json())
+  .then(res => res.json())
   .then(data => {
-    window.people = data.people.map(p => {
-      const years =
-        Math.floor((Date.now() - new Date(p.dob)) / (1000 * 60 * 60 * 24 * 365));
-      return { ...p, count: years };
-    });
+    people = data.people.map(p => ({
+      name: p.name,
+      dob: new Date(p.dob),
+      colors: p.colors
+    }));
+    generateTallies();
     draw();
   });
 
-function draw() {
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.setTransform(scale,0,0,scale,offsetX,offsetY);
+// ===== GENERATE TALLIES (1 per year from first DOB) =====
+function generateTallies() {
+  tallies = [];
 
-  let y = 0;
+  const startDate = people[0].dob;
+  const today = new Date();
+  const years = today.getFullYear() - startDate.getFullYear();
 
-  people.forEach(person => {
-    drawTallies(person, 0, y);
-    y += GAP_Y;
-  });
-}
+  for (let i = 0; i <= years; i++) {
+    const date = new Date(startDate);
+    date.setFullYear(startDate.getFullYear() + i);
 
-function drawTallies(person, x, y) {
-  ctx.fillStyle = "#fff";
-  ctx.fillText(person.name, x, y - 10);
+    const activePeople = people.filter(p => date >= p.dob);
 
-  for (let i = 0; i < person.count; i++) {
-    const tx = x + i * GAP_X;
+    const row = Math.floor(i / 25);
+    const col = i % 25;
 
-    if ((i + 1) % 5 === 0) {
-      // Prisoner cross
-      ctx.strokeStyle = "#ff4444";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(tx - GAP_X * 4, y + LINE_HEIGHT);
-      ctx.lineTo(tx, y);
-      ctx.stroke();
-    } else {
-      const color = person.colors[i % person.colors.length];
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(tx, y);
-      ctx.lineTo(tx, y + LINE_HEIGHT);
-      ctx.stroke();
-    }
+    tallies.push({
+      x: col * GAP_X,
+      y: row * GAP_Y,
+      date,
+      people: activePeople
+    });
   }
 }
 
-/* ───────── Zoom (Ctrl + Scroll only) ───────── */
+// ===== DRAW =====
+function draw() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
+  ctx.lineCap = "round";
+  ctx.lineWidth = 3;
+
+  tallies.forEach(t => {
+    t.people.forEach((p, i) => {
+      ctx.strokeStyle = p.colors[i % p.colors.length];
+      ctx.beginPath();
+      ctx.moveTo(t.x + i * LINE_GAP, t.y);
+      ctx.lineTo(t.x + i * LINE_GAP, t.y + LINE_HEIGHT);
+      ctx.stroke();
+    });
+  });
+}
+
+// ===== ZOOM & PAN =====
 canvas.addEventListener("wheel", e => {
-  if (!e.ctrlKey) return;
+  if (e.ctrlKey) {
+    e.preventDefault();
 
-  e.preventDefault();
+    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+    const mouseX = (e.clientX - offsetX) / scale;
+    const mouseY = (e.clientY - offsetY) / scale;
 
-  const zoom = e.deltaY < 0 ? 1.1 : 0.9;
-  const newScale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale * zoom));
+    scale *= zoomFactor;
+    scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale));
 
-  const rect = canvas.getBoundingClientRect();
-  const mx = (e.clientX - rect.left - offsetX) / scale;
-  const my = (e.clientY - rect.top - offsetY) / scale;
-
-  scale = newScale;
-  offsetX = e.clientX - mx * scale;
-  offsetY = e.clientY - my * scale;
+    offsetX = e.clientX - mouseX * scale;
+    offsetY = e.clientY - mouseY * scale;
+  } else {
+    offsetX -= e.deltaX;
+    offsetY -= e.deltaY;
+  }
 
   draw();
 }, { passive: false });
 
-/* ───────── Drag to pan ───────── */
+// ===== DRAG =====
 canvas.addEventListener("mousedown", e => {
   isDragging = true;
   startX = e.clientX - offsetX;
   startY = e.clientY - offsetY;
 });
 
-window.addEventListener("mouseup", () => isDragging = false);
-
 window.addEventListener("mousemove", e => {
-  if (!isDragging) return;
-  offsetX = e.clientX - startX;
-  offsetY = e.clientY - startY;
-  draw();
+  if (isDragging) {
+    offsetX = e.clientX - startX;
+    offsetY = e.clientY - startY;
+    draw();
+  } else {
+    handleHover(e);
+  }
 });
+
+window.addEventListener("mouseup", () => {
+  isDragging = false;
+});
+
+// ===== HOVER TOOLTIP =====
+function handleHover(e) {
+  const wx = (e.clientX - offsetX) / scale;
+  const wy = (e.clientY - offsetY) / scale;
+
+  let hit = null;
+
+  for (const t of tallies) {
+    const width = t.people.length * LINE_GAP;
+    if (
+      wx >= t.x - 5 &&
+      wx <= t.x + width + 5 &&
+      wy >= t.y &&
+      wy <= t.y + LINE_HEIGHT
+    ) {
+      hit = t;
+      break;
+    }
+  }
+
+  if (hit) {
+    tooltip.style.opacity = 1;
+    tooltip.style.left = e.clientX + 12 + "px";
+    tooltip.style.top = e.clientY + 12 + "px";
+    tooltip.textContent =
+      hit.date.getFullYear() + " — " +
+      hit.people.map(p => p.name).join(", ");
+  } else {
+    tooltip.style.opacity = 0;
+  }
+}
