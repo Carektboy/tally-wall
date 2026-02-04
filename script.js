@@ -14,35 +14,35 @@ const data = {
     ]
 };
 
-// CONFIGURATION
-let scale = 0.8;
+let scale = 0.6; // Started slightly zoomed out because tallies are bigger now
 let offsetX = 80, offsetY = 80;
 let tallies = [];
 const cache = new Map();
-const dpr = window.devicePixelRatio || 1; // Critical for High Quality
+const dpr = window.devicePixelRatio || 1;
 
+// --- 1. INCREASED SIZE IN PRE-RENDER ---
 function preRenderMarks() {
     data.people.forEach(p => {
         const off = document.createElement('canvas');
-        // Pre-render at high density
-        off.width = 30 * dpr; 
-        off.height = 80 * dpr;
+        // Larger buffer for larger marks
+        off.width = 50 * dpr; 
+        off.height = 140 * dpr; 
         const oCtx = off.getContext('2d');
         oCtx.scale(dpr, dpr); 
 
         oCtx.strokeStyle = p.color;
-        oCtx.lineWidth = 2.2; // Thin, professional line
+        oCtx.lineWidth = 4; // Bolder lines for bigger tallies
         oCtx.lineCap = "round";
         oCtx.beginPath();
-        oCtx.moveTo(10, 5);
-        oCtx.bezierCurveTo(13, 25, 7, 45, 10, 75); // Subtle hand-inked curve
+        oCtx.moveTo(15, 10);
+        // Stretched the curve for a longer tally
+        oCtx.bezierCurveTo(25, 45, 5, 85, 15, 125); 
         oCtx.stroke();
         cache.set(p.name, off);
     });
 }
 
 function init() {
-    // Sharpness setup
     canvas.width = window.innerWidth * dpr;
     canvas.height = window.innerHeight * dpr;
     canvas.style.width = window.innerWidth + "px";
@@ -63,10 +63,9 @@ function init() {
         const date = new Date(startDate.getTime() + i * 86400000);
         const alive = people.filter(p => new Date(p.dob) <= date);
 
-        // Grid wrap
         if (curX > wrapWidth) { 
             curX = 0; 
-            curY += 110; 
+            curY += 160; // Increased row gap to fit bigger tallies
         }
 
         tallies.push({ 
@@ -76,14 +75,12 @@ function init() {
             people: alive.map(p => p.name) 
         });
 
-        // SPACE BETWEEN DAYS (Overlap groups)
-        curX += 24; 
+        curX += 35; // Increased horizontal gap to fit thicker lines
     }
     draw();
 }
 
 function draw() {
-    // Reset transform to DPR for crystal clear drawing
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = "#fdfaf6";
     ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
@@ -92,38 +89,33 @@ function draw() {
     ctx.translate(offsetX, offsetY);
     ctx.scale(scale, scale);
 
-    // Culling: Only draw rows visible on screen
     const vTop = -offsetY / scale;
     const vBottom = (window.innerHeight - offsetY) / scale;
 
     tallies.forEach(t => {
-        if (t.y < vTop - 150 || t.y > vBottom + 150) return;
+        if (t.y < vTop - 200 || t.y > vBottom + 200) return;
         
         t.people.forEach((name, j) => {
             const img = cache.get(name);
-            // Overlap within day (j * 4)
-            if (img) ctx.drawImage(img, t.x + (j * 4), t.y, 30, 80);
+            // Draw at 50x140 size
+            if (img) ctx.drawImage(img, t.x + (j * 6), t.y, 50, 140);
         });
     });
     ctx.restore();
 }
 
-// Fixed High-Precision Interaction
 window.addEventListener("wheel", e => {
     e.preventDefault();
     const mouseX = (e.clientX - offsetX) / scale;
     const mouseY = (e.clientY - offsetY) / scale;
 
     if (e.ctrlKey || e.metaKey) {
-        // Smooth Zoom
         const zoomFactor = Math.pow(1.1, -Math.sign(e.deltaY));
         const newScale = Math.min(Math.max(scale * zoomFactor, 0.05), 4);
-        
         offsetX = e.clientX - mouseX * newScale;
         offsetY = e.clientY - mouseY * newScale;
         scale = newScale;
     } else {
-        // Panning
         offsetX -= e.deltaX;
         offsetY -= e.deltaY;
     }
@@ -134,23 +126,18 @@ window.addEventListener("mousemove", e => {
     const x = (e.clientX - offsetX) / scale;
     const y = (e.clientY - offsetY) / scale;
     
-    // Find the date group under mouse
-    const t = tallies.find(t => x > t.x && x < t.x + 35 && y > t.y && y < t.y + 80);
+    // Updated collision box for bigger tallies
+    const t = tallies.find(t => x > t.x && x < t.x + 50 && y > t.y && y < t.y + 130);
     
     if (t) {
         tooltip.style.opacity = 1;
         tooltip.style.left = e.clientX + 15 + "px";
         tooltip.style.top = e.clientY + 15 + "px";
-        tooltip.innerHTML = `<strong>${t.date}</strong><br>${t.people.length} People Present`;
+        tooltip.innerHTML = `<strong>${t.date}</strong><br>${t.people.length} Members`;
     } else {
         tooltip.style.opacity = 0;
     }
 });
 
-// Auto-Quality adjustment on window resize
-window.addEventListener("resize", () => {
-    init();
-});
-
-// Initial Load
+window.addEventListener("resize", () => init());
 init();
