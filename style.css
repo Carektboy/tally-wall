@@ -19,7 +19,7 @@ canvas:active {
 #tooltip {
   position: fixed;
   background: rgba(0,0,0,0.85);
-  color: white;
+  color: #fff;
   padding: 6px 10px;
   font-size: 12px;
   border-radius: 4px;
