@@ -1,177 +1,172 @@
 const canvas = document.getElementById("tallyCanvas");
-const ctx = canvas.getContext("2d");
+const ctx = canvas.getContext("2d", { alpha: false });
 const tooltip = document.getElementById("tooltip");
 
-const dpr = window.devicePixelRatio || 1;
+const data = {
+    "people": [
+        { "name": "Grandmother", "dob": "1938-02-01", "color": "#2d5a27" },
+        { "name": "Father", "dob": "1969-05-25", "color": "#1e3a8a" },
+        { "name": "Mother", "dob": "1980-01-29", "color": "#9a3412" },
+        { "name": "Aunt", "dob": "1985-02-07", "color": "#5b21b6" },
+        { "name": "Samip", "dob": "2004-08-07", "color": "#0369a1" },
+        { "name": "Kabir", "dob": "2005-04-05", "color": "#854d0e" },
+        { "name": "Sangram", "dob": "2008-05-07", "color": "#9d174d" }
+    ]
+};
 
-/* ================= PEOPLE ================= */
-const people = [
-  { name: "Grandfather", born: "1943-01-01", died: "1985-01-01", color: "#444" },
-  { name: "Grandmother", born: "1942-02-01", died: null, color: "#2d5a27" },
-  { name: "Father", born: "1969-06-08", died: null, color: "#1e3a8a" },
-  { name: "Uncle", born: "1971-01-01", died: null, color: "#7c2d12" },
-  { name: "Fupu", born: "1974-01-01", died: null, color: "#6b21a8" },
-  { name: "Mother", born: "1980-01-29", died: null, color: "#9a3412" },
-  { name: "Aunt", born: "1985-01-01", died: null, color: "#5b21b6" },
-  { name: "Me", born: "2004-08-07", died: null, color: "#0369a1" },
-  { name: "Cousin 1", born: "2005-04-05", died: null, color: "#854d0e" },
-  { name: "Brother", born: "2008-05-07", died: null, color: "#9d174d" },
-  { name: "Cousin 2", born: "2009-01-09", died: null, color: "#065f46" }
-];
-
-/* ================= CONFIG ================= */
-const DAY_GAP = 22;        // horizontal spacing between days
-const ROW_GAP = 90;        // vertical spacing between rows
-const TALLY_HEIGHT = 42;
-const TALLY_SPREAD = 6;    // horizontal spread between people
-const WIGGLE = 3;          // subtle hand-drawn feel
-/* ========================================= */
-
-let scale = 0.8;
-let offsetX = 120;
-let offsetY = 120;
-
+let scale = 0.6; 
+let offsetX = 80, offsetY = 80;
 let tallies = [];
-let startDate;
+const cache = new Map();
+const dpr = window.devicePixelRatio || 1;
+let lastUpdateDate = new Date().toDateString(); // Track current day
 
-/* ---------- INIT ---------- */
+function preRenderMarks() {
+    data.people.forEach(p => {
+        const off = document.createElement('canvas');
+        off.width = 50 * dpr; 
+        off.height = 140 * dpr; 
+        const oCtx = off.getContext('2d');
+        oCtx.scale(dpr, dpr); 
+        oCtx.strokeStyle = p.color;
+        oCtx.lineWidth = 4;
+        oCtx.lineCap = "round";
+        oCtx.beginPath();
+        oCtx.moveTo(15, 10);
+        oCtx.bezierCurveTo(25, 45, 5, 85, 15, 125); 
+        oCtx.stroke();
+        cache.set(p.name, off);
+    });
+}
+
 function init() {
-  canvas.width = innerWidth * dpr;
-  canvas.height = innerHeight * dpr;
-  canvas.style.width = innerWidth + "px";
-  canvas.style.height = innerHeight + "px";
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width = window.innerWidth + "px";
+    canvas.style.height = window.innerHeight + "px";
+    
+    preRenderMarks();
 
-  startDate = new Date(
-    Math.min(...people.map(p => new Date(p.born)))
-  );
+    const people = [...data.people].sort((a, b) => new Date(a.dob) - new Date(b.dob));
+    const startDate = new Date(people[0].dob);
+    const today = new Date();
+    const totalDays = Math.floor((today - startDate) / 86400000);
 
-  buildTallies();
-  draw();
-}
+    const wrapWidth = window.innerWidth - 150;
+    let curX = 0, curY = 0;
 
-/* ---------- BUILD ---------- */
-function buildTallies() {
-  tallies = [];
+    tallies = [];
+    for (let i = 0; i <= totalDays; i++) {
+        const date = new Date(startDate.getTime() + i * 86400000);
+        const alive = people.filter(p => new Date(p.dob) <= date);
 
-  const today = new Date();
-  const totalDays = Math.floor((today - startDate) / 86400000);
+        if (curX > wrapWidth) { 
+            curX = 0; 
+            curY += 160; 
+        }
 
-  let x = 0;
-  let y = 0;
-  const maxPerRow = Math.floor(innerWidth / DAY_GAP) - 4;
-
-  for (let i = 0; i <= totalDays; i++) {
-    const date = new Date(startDate.getTime() + i * 86400000);
-
-    const alive = people.filter(p =>
-      new Date(p.born) <= date &&
-      (!p.died || new Date(p.died) >= date)
-    );
-
-    tallies.push({
-      x: x * DAY_GAP,
-      y: y * ROW_GAP,
-      date,
-      alive
-    });
-
-    x++;
-    if (x > maxPerRow) {
-      x = 0;
-      y++;
+        tallies.push({ 
+            x: curX, 
+            y: curY, 
+            date: date.toDateString(), 
+            people: alive.map(p => p.name) 
+        });
+        curX += 35;
     }
-  }
+    draw();
 }
 
-/* ---------- DRAW ---------- */
+// --- NEW FUNCTION: ADDS TALLY AS TIME PASSES ---
+function checkForNewDay() {
+    const today = new Date();
+    const todayStr = today.toDateString();
+
+    if (todayStr !== lastUpdateDate) {
+        console.log("New day detected! Adding tally...");
+        lastUpdateDate = todayStr;
+        
+        // Find the last tally position
+        const lastTally = tallies[tallies.length - 1];
+        const wrapWidth = window.innerWidth - 150;
+        
+        let newX = lastTally.x + 35;
+        let newY = lastTally.y;
+
+        if (newX > wrapWidth) {
+            newX = 0;
+            newY += 160;
+        }
+
+        const alive = data.people.filter(p => new Date(p.dob) <= today);
+
+        tallies.push({
+            x: newX,
+            y: newY,
+            date: todayStr,
+            people: alive.map(p => p.name)
+        });
+
+        draw();
+    }
+}
+
+// Run the check every 60 seconds
+setInterval(checkForNewDay, 60000);
+
 function draw() {
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = "#fdfaf6";
-  ctx.fillRect(0, 0, innerWidth, innerHeight);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = "#fdfaf6";
+    ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+    
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
 
-  ctx.save();
-  ctx.translate(offsetX, offsetY);
-  ctx.scale(scale, scale);
+    const vTop = -offsetY / scale;
+    const vBottom = (window.innerHeight - offsetY) / scale;
 
-  tallies.forEach(t => {
-    t.alive.forEach((p, i) => {
-      drawTally(
-        t.x + i * TALLY_SPREAD,
-        t.y,
-        p.color,
-        i
-      );
+    tallies.forEach(t => {
+        if (t.y < vTop - 200 || t.y > vBottom + 200) return;
+        t.people.forEach((name, j) => {
+            const img = cache.get(name);
+            if (img) ctx.drawImage(img, t.x + (j * 6), t.y, 50, 140);
+        });
     });
-  });
-
-  ctx.restore();
+    ctx.restore();
 }
 
-/* ---------- WIGGLY TALLY ---------- */
-function drawTally(x, y, color, seed) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 3;
-  ctx.lineCap = "round";
-
-  ctx.beginPath();
-
-  const wiggleX = () => (Math.random() - 0.5) * WIGGLE;
-  const wiggleY = () => (Math.random() - 0.5) * WIGGLE;
-
-  ctx.moveTo(x + wiggleX(), y + wiggleY());
-  ctx.lineTo(
-    x + wiggleX(),
-    y - TALLY_HEIGHT + wiggleY()
-  );
-
-  ctx.stroke();
-}
-
-/* ---------- ZOOM (CURSOR-CENTERED, FIXED) ---------- */
+// Listeners
 window.addEventListener("wheel", e => {
-  e.preventDefault();
+    e.preventDefault();
+    const mouseX = (e.clientX - offsetX) / scale;
+    const mouseY = (e.clientY - offsetY) / scale;
 
-  const rect = canvas.getBoundingClientRect();
-  const mx = (e.clientX - rect.left - offsetX) / scale;
-  const my = (e.clientY - rect.top - offsetY) / scale;
-
-  if (e.ctrlKey || e.metaKey) {
-    const zoom = e.deltaY < 0 ? 1.1 : 0.9;
-    const newScale = Math.min(Math.max(scale * zoom, 0.25), 4);
-
-    offsetX = e.clientX - rect.left - mx * newScale;
-    offsetY = e.clientY - rect.top - my * newScale;
-    scale = newScale;
-  } else {
-    offsetX -= e.deltaX;
-    offsetY -= e.deltaY;
-  }
-
-  requestAnimationFrame(draw);
+    if (e.ctrlKey || e.metaKey) {
+        const factor = Math.pow(1.1, -Math.sign(e.deltaY));
+        const newScale = Math.min(Math.max(scale * factor, 0.05), 4);
+        offsetX = e.clientX - mouseX * newScale;
+        offsetY = e.clientY - mouseY * newScale;
+        scale = newScale;
+    } else {
+        offsetX -= e.deltaX;
+        offsetY -= e.deltaY;
+    }
+    draw();
 }, { passive: false });
 
-/* ---------- TOOLTIP ---------- */
 window.addEventListener("mousemove", e => {
-  const mx = (e.clientX - offsetX) / scale;
-  const my = (e.clientY - offsetY) / scale;
-
-  const t = tallies.find(t =>
-    mx > t.x - 6 &&
-    mx < t.x + 20 &&
-    my < t.y &&
-    my > t.y - TALLY_HEIGHT
-  );
-
-  if (!t) {
-    tooltip.style.opacity = 0;
-    return;
-  }
-
-  tooltip.style.opacity = 1;
-  tooltip.style.left = e.clientX + 14 + "px";
-  tooltip.style.top = e.clientY + 14 + "px";
-  tooltip.innerHTML = `<strong>${t.date.toDateString()}</strong>`;
+    const x = (e.clientX - offsetX) / scale;
+    const y = (e.clientY - offsetY) / scale;
+    const t = tallies.find(t => x > t.x && x < t.x + 50 && y > t.y && y < t.y + 130);
+    if (t) {
+        tooltip.style.opacity = 1;
+        tooltip.style.left = e.clientX + 15 + "px";
+        tooltip.style.top = e.clientY + 15 + "px";
+        tooltip.innerHTML = `<strong>${t.date}</strong><br>${t.people.length} Members`;
+    } else {
+        tooltip.style.opacity = 0;
+    }
 });
 
-window.addEventListener("resize", init);
+window.addEventListener("resize", () => init());
 init();
