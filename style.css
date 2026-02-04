@@ -1,24 +1,31 @@
 html, body {
   margin: 0;
   padding: 0;
+  height: 100%;
+  overflow: auto;
   background: #f4efe8;
-  overflow: hidden; /* canvas handles movement */
   font-family: sans-serif;
 }
 
 canvas {
   display: block;
+  background: #ffffff;
+  cursor: grab;
+}
+
+canvas:active {
+  cursor: grabbing;
 }
 
 #tooltip {
   position: fixed;
-  background: rgba(0,0,0,0.85);
+  background: rgba(0,0,0,0.8);
   color: #fff;
   padding: 6px 10px;
   font-size: 12px;
   border-radius: 4px;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.1s;
+  transition: opacity 0.12s ease;
   z-index: 10;
 }
