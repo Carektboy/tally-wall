@@ -1,0 +1,41 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #f4efe8;
+  overflow: auto; /* Required to scroll the 1000 entries */
+  font-family: sans-serif;
+}
+
+#wall {
+  display: block;
+  background: #f4efe8;
+}
+
+.tally {
+  fill: none;
+  stroke: rgba(0,0,0,0.6);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  cursor: pointer;
+  transition: stroke 0.2s, stroke-width 0.2s;
+}
+
+/* Highlight the whole group (|, ||, or |||) on hover */
+g:hover .tally {
+  stroke: #d32f2f; /* Red highlight from your design */
+  stroke-width: 3.5;
+}
+
+#tooltip {
+  position: fixed;
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 100;
+  transition: opacity 0.15s;
+}
