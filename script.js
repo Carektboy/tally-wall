@@ -60,6 +60,11 @@ function init(people) {
   draw();
 }
 
+/**
+ * REDUCING GAPS: 
+ * Change (i * 4) to (i * 3) to overlap more.
+ * Change (i * 4) to (i * 6) to increase the gap.
+ */
 function draw() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -74,27 +79,27 @@ function draw() {
     if (screenX < -200 || screenX > canvas.width + 200 || screenY < -200 || screenY > canvas.height + 200) return;
 
     t.people.forEach((p, i) => {
-      // Reduce the (i * 5) to (i * 4) to make the overlap even tighter
+      // Overlap logic: spacing is smaller than lineWidth
       const xPos = t.x + (i * 4); 
       
-      // Hand-drawn jitter logic
+      // Jitter logic for hand-drawn feel
       const yStart = t.y + (Math.sin(i + t.x) * 2); 
       const yEnd = t.y + 42 + (Math.cos(i + t.x) * 2);
-      const jitterX = xPos + 2 + (Math.random() * 2);
+      const controlX = xPos + 2 + (Math.random() * 2);
 
-      // Deep Ink Effect: Slightly transparent deeper colors
+      // Deep Ink: Adds transparency for natural blending where lines overlap
       ctx.strokeStyle = p.colors[0] + "DD"; 
-      ctx.lineWidth = 3.5 + (Math.random() * 1.5); // Random thickness for ink feel
+      ctx.lineWidth = 3.5 + (Math.random() * 1.5); 
 
       ctx.beginPath();
       ctx.moveTo(xPos, yStart);
-      ctx.quadraticCurveTo(jitterX, yStart + 21, xPos + (Math.random() - 0.5), yEnd);
+      ctx.quadraticCurveTo(controlX, yStart + 21, xPos + (Math.random() - 0.5), yEnd);
       ctx.stroke();
     });
   });
 }
 
-// Interactivity
+// Interactivity handlers
 canvas.addEventListener("wheel", e => {
   e.preventDefault();
   if (e.ctrlKey || e.metaKey) {
